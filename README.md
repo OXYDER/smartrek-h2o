@@ -100,7 +100,31 @@ Packages → smartrek-h2o → Package settings** et passe la visibilité à
 **Public**. Comme ça, Portainer peut puller l'image sans jamais avoir besoin
 d'identifiants — aucun token à saisir, ni maintenant ni plus tard.
 
-### 1. Stack Portainer
+### Option rapide : deploy.sh (sans passer par Portainer)
+
+Si tu préfères éviter les allers-retours dans l'UI Portainer, `deploy.sh`
+fait tout en une commande : pull l'image la plus récente depuis GHCR,
+redémarre le conteneur, nettoie les vieilles images, et vérifie que ça
+répond. Par SSH sur le NAS :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/OXYDER/smartrek-h2o/main/deploy.sh | bash
+```
+
+Ou en gardant le script en local sur le NAS pour le relancer facilement :
+
+```bash
+mkdir -p ~/smartrek-h2o-deploy && cd ~/smartrek-h2o-deploy
+curl -fsSL https://raw.githubusercontent.com/OXYDER/smartrek-h2o/main/deploy.sh -o deploy.sh
+chmod +x deploy.sh
+./deploy.sh          # à relancer après chaque nouveau push
+```
+
+Ça crée son propre `docker-compose.yml` (toujours le plus récent), donc pas
+besoin de cloner le repo en entier ni de garder quoi que ce soit à jour
+manuellement — juste relancer `./deploy.sh` après chaque push.
+
+### Option Portainer
 
 Dans Portainer → **Stacks → Add stack** :
 - Build method : **Web editor** (plus besoin de lier le repo Git — l'image

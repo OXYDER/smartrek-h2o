@@ -1,0 +1,12 @@
+services:
+  smartrek-h2o:
+    build:
+      context: .
+      args:
+        VITE_SMARTREK_EMAIL: ${VITE_SMARTREK_EMAIL}
+        VITE_SMARTREK_PASSWORD: ${VITE_SMARTREK_PASSWORD}
+        VITE_SMARTREK_API_BASE: ${VITE_SMARTREK_API_BASE:-https://data3.smartrek.io/api}
+    container_name: smartrek-h2o
+    restart: unless-stopped
+    ports:
+      - "8091:80"

@@ -24,6 +24,11 @@ POST https://data3.smartrek.io/api/v2/boot
 Authorization: Bearer <JWT>
 Content-Type: application/json
 ```
+Body (confirmé par capture HAR réelle) : `{ "userId": "<id utilisateur>" }`
+— **pas** un body vide comme on l'avait supposé au départ. Le `userId`
+s'obtient de façon fiable via `Alarms/get-user-alarm-recipient-groups`
+(champ `userId` du premier groupe retourné) — implémenté dans
+`src/api/realBoot.ts::ensureUserId()`, mis en cache après le premier appel.
 - CORS : `Access-Control-Allow-Origin: https://app3.smartrekh2o.com` (donc restreint à ce domaine — un proxy sera probablement nécessaire pour appeler depuis notre propre app)
 - Réponse : `{ nodes: [ { table, activeNode, smartgateway, smartgateway_global_status, softwareVersion, xmlcreated_tstamp, row_items: [...] } ] }`
 

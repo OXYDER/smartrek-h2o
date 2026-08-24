@@ -91,7 +91,10 @@ export function getCachedToken(): string | null {
   return cachedToken
 }
 
+import { clearUserId } from './realBoot'
+
 export function clearToken(): void {
   cachedToken = null
   sessionStorage.removeItem(SESSION_KEY)
+  clearUserId()
 }

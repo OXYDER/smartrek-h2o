@@ -26,7 +26,7 @@
  */
 
 const SENTINEL_UNUSED_SLOT = -100 // 0xFF9C — canal non câblé (emplacement générique inutilisé)
-const SENTINEL_PORT_ABSENT = 320 // 0x7D00 — port qui n'existe pas physiquement sur ce modèle d'appareil
+const SENTINEL_PORT_ABSENT = 320 // 0x7D00 — port du boîtier non câblé (le boîtier peut en avoir la capacité sans que la ligne y soit branchée)
 
 export interface DecodedChannel {
   index: number

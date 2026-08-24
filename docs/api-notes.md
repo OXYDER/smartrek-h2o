@@ -55,6 +55,15 @@ la sentinelle `0xFF9C`/-100 vue ailleurs pour les canaux non câblés.
 Confirmé sur `extracteur`/`13`/`14` (1 port actif, canaux 2-3 à 320.00) et
 `15 +niche` (2 ports actifs, canal 3 à 320.00).
 
+⚠️ Le **nom du capteur** suit le(s) numéro(s) de ligne(s) de tubulure
+branchée(s), pas la capacité physique du boîtier. `1-2-3` = un boîtier
+3 ports avec les lignes 1, 2 et 3 branchées sur ses 3 ports. `13` et `14`
+= chacun un boîtier modèle **double port**, mais avec une seule des deux
+lignes effectivement branchée — d'où un seul canal actif malgré la
+capacité 2 ports du matériel. Le nombre de ports *actifs* dans `dats` ne
+dit donc rien sur la capacité du boîtier, seulement sur ce qui est
+effectivement câblé à ce moment.
+
 ### Format du champ `dats` (décodage validé ✓)
 
 Confirmé en comparant les valeurs décodées aux valeurs affichées dans

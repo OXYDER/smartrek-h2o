@@ -192,7 +192,40 @@ avec plus de nœuds a révélé :
   seulement **11 octets**. C'est un **répéteur radio** (relais réseau),
   pas un capteur de mesure.
 
-### Batterie — trouvée ✓
+### Bassin/niveau (`type: 1`) — dats décodé ✓ (configuration, pas de lecture live)
+
+Grâce à l'écran de détail natif de l'app (« Détails du A-Link Bassin S3 »),
+qui affiche batterie + config de calibration côte à côte, le payload de
+24 octets est maintenant entièrement compris :
+
+| Octets (absolu) | Contenu | Formule |
+|---|---|---|
+| 0-7 | Timestamp Unix ms | `uint64 LE` |
+| 13 | **Batterie** | `octet × 4 − 261` (même formule que le vide, décalée d'1 octet) |
+| 14-15 | Calibration du zéro (in) | `int16 LE / 10` |
+| 16-17 | Niveau élevé — **le "max" qu'on avait trouvé** (in) | `int16 LE / 10` |
+| 18-19 | Niveau en avertissement (in) | `int16 LE / 10` |
+| 20-21 | Niveau en priorité (in) | `int16 LE / 10` |
+| 22-23 | Niveau bas (in) | `int16 LE / 10` (`-1` = non configuré) |
+
+Validé exactement sur Bassin S3 et S4 (5 valeurs de config + batterie,
+match parfait sur les 12 nombres).
+
+**Ce `dats` ne contient QUE de la configuration/calibration — pas de
+lecture de niveau en direct.** C'est pour ça qu'on ne trouvait jamais le
+courant (`6.3 in`, `9.1 in`) malgré une recherche exhaustive : il n'est
+juste pas dans ce blob. L'écran de détail de l'app affiche lui-même
+« Aucune donnée récente disponible » pour ces deux bassins — la valeur
+`6.3`/`9.1` affichée ailleurs est probablement une dernière valeur mise
+en cache côté serveur (base de données), pas quelque chose de dérivable
+depuis `/boot`. Il faudrait un capteur de niveau **actif** (qui transmet
+encore) pour voir à quoi ressemble une vraie lecture live, si ce type de
+payload en contient une différente une fois en ligne.
+
+Implémenté : `decodeBatteryPercent(dats, 13)` pour la batterie. La
+configuration (seuils) n'est pas encore branchée dans l'app — pas de cas
+d'usage clair identifié pour l'instant (ce sont les seuils de Smartrek
+eux-mêmes, pas les nôtres).
 
 L'octet à l'index **14** du payload complet (34 octets pour un capteur de
 vide) encode le pourcentage de batterie :

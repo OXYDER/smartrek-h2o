@@ -29,17 +29,15 @@ const SENTINEL_UNUSED_SLOT = -100 // 0xFF9C — canal non câblé (emplacement g
 const SENTINEL_PORT_ABSENT = 320 // 0x7D00 — port du boîtier non câblé (le boîtier peut en avoir la capacité sans que la ligne y soit branchée)
 
 /**
- * Pourcentage de batterie — validé sur 4 capteurs réels avec valeur
- * affichée à l'écran en parallèle (79%, 79%, 75%, 71%), match exact sans
- * arrondi. L'octet à l'index 14 (absolu, dans les 34 octets du payload
- * complet) encode la batterie : `pct = octet * 4 - 261`.
- * Ce qu'on prenait pour une "constante protocolaire ~78-86" au début de
- * l'exploration était en fait la batterie tout du long.
+ * Pourcentage de batterie — validé sur 4 capteurs de vide (offset 14) ET
+ * sur 2 capteurs de niveau/bassin (offset 13, décalé d'un octet à cause
+ * d'une structure de payload différente). Même formule dans les deux cas :
+ * `pct = octet * 4 - 261`.
  */
-export function decodeBatteryPercent(b64: string): number | null {
+export function decodeBatteryPercent(b64: string, offset = 14): number | null {
   const bytes = base64ToBytes(b64)
-  if (bytes.length < 15) return null
-  const raw = bytes[14]
+  if (bytes.length <= offset) return null
+  const raw = bytes[offset]
   const pct = raw * 4 - 261
   return Math.max(0, Math.min(100, pct))
 }

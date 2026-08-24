@@ -77,8 +77,15 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
     siteId,
     lastReadingAt: new Date(decoded.timestampMs).toISOString(),
     deviceType: item.type,
-    // La formule de batterie n'est validée que pour type 0 (voir docs/api-notes.md).
-    batteryPercent: item.type === 0 ? (decodeBatteryPercent(item.dats) ?? undefined) : undefined,
+    // Formule validée pour type 0 (offset 14) et type 1 (offset 13, décalé
+    // d'un octet — structure de payload différente). Pas encore trouvée
+    // pour les répéteurs (type 10).
+    batteryPercent:
+      item.type === 0
+        ? (decodeBatteryPercent(item.dats, 14) ?? undefined)
+        : item.type === 1
+          ? (decodeBatteryPercent(item.dats, 13) ?? undefined)
+          : undefined,
     channels,
     notificationChannels: [],
   }

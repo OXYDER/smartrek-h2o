@@ -6,25 +6,22 @@ import type {
   SensorChannel,
   ChannelKind,
 } from '../types/sensor'
-import { mockSensors, mockSites } from './mockData'
+import { fetchBoot } from './realBoot'
 
 /**
- * Couche d'accès aux données — actuellement en mémoire (mock).
- *
- * POUR BRANCHER LA VRAIE API SMARTREK H2O :
- * Le endpoint /api/v2/boot renvoie tous les nœuds (passerelles + capteurs)
- * d'un coup, avec leurs lectures encodées dans le champ `dats` (voir
- * src/api/decodeDats.ts pour le décodeur déjà validé). Remplace les
- * méthodes de lecture (listSites/listSensors) par un vrai fetch + mapping
- * des row_items vers nos types Site/Sensor. Les méthodes d'écriture
- * (CRUD seuils/canaux/notifications) restent à découvrir — capture les
- * requêtes correspondantes dans l'app d'origine si elles existent.
+ * Couche d'accès aux données — branchée sur le vrai /boot de Smartrek H2O.
+ * Les lectures (sites/capteurs) viennent du serveur ; les écritures
+ * (CRUD seuils/canaux/notifications/renommage) restent en mémoire locale
+ * pour l'instant car les endpoints d'écriture réels n'ont pas encore été
+ * capturés — voir docs/api-notes.md, section « À capturer encore ».
  */
 
-const LATENCY_MS = 250
+const LATENCY_MS = 150
 
-let sensors: Sensor[] = JSON.parse(JSON.stringify(mockSensors))
-const sites: Site[] = JSON.parse(JSON.stringify(mockSites))
+let sites: Site[] = []
+let sensors: Sensor[] = []
+let bootLoaded = false
+let bootError: string | null = null
 
 function delay<T>(value: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), LATENCY_MS))
@@ -34,18 +31,36 @@ function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+async function ensureBootLoaded(): Promise<void> {
+  if (bootLoaded) return
+  await refreshBoot()
+}
+
+async function refreshBoot(): Promise<void> {
+  try {
+    const result = await fetchBoot()
+    sites = result.sites
+    sensors = result.sensors
+    bootLoaded = true
+    bootError = null
+  } catch (err) {
+    bootError = err instanceof Error ? err.message : 'Erreur inconnue lors du chargement des données.'
+    bootLoaded = true // évite de re-fetch en boucle ; refreshBoot() manuel pour réessayer
+  }
+}
+
 function findChannel(sensor: Sensor, channelId: string): SensorChannel | undefined {
   return sensor.channels.find((c) => c.id === channelId)
 }
 
 export const smartrekClient = {
   async listSites(): Promise<Site[]> {
-    // TODO(réel): GET /api/sites — ou dérivé des row_items de type 5 (passerelle) sur /boot
+    await ensureBootLoaded()
     return delay(sites)
   },
 
   async updateSite(id: string, patch: Partial<Site>): Promise<Site | undefined> {
-    // TODO(réel): PATCH /api/sites/:id — ou endpoint de renommage de la passerelle
+    // TODO(réel): endpoint de renommage de la passerelle — pas encore capturé, modif locale seulement
     const idx = sites.findIndex((s) => s.id === id)
     if (idx === -1) return delay(undefined)
     sites[idx] = { ...sites[idx], ...patch }
@@ -53,9 +68,17 @@ export const smartrekClient = {
   },
 
   async listSensors(siteId?: string): Promise<Sensor[]> {
-    // TODO(réel): GET /boot puis mapper row_items (type 0) + decodeDats(dats)
+    await ensureBootLoaded()
     const result = siteId ? sensors.filter((s) => s.siteId === siteId) : sensors
     return delay(result)
+  },
+
+  async refreshBoot(): Promise<void> {
+    await refreshBoot()
+  },
+
+  getBootError(): string | null {
+    return bootError
   },
 
   async createSensor(input: {

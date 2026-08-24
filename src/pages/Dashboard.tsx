@@ -22,14 +22,26 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [openSensorId, setOpenSensorId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [bootError, setBootError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  async function loadData() {
+    const [s, se] = await Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()])
+    setSites(s)
+    setSensors(se)
+    setBootError(smartrekClient.getBootError())
+  }
 
   useEffect(() => {
-    Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()]).then(([s, se]) => {
-      setSites(s)
-      setSensors(se)
-      setLoading(false)
-    })
+    loadData().finally(() => setLoading(false))
   }, [])
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    await smartrekClient.refreshBoot()
+    await loadData()
+    setRefreshing(false)
+  }
 
   const filtered = useMemo(() => {
     return sensors.filter((s) => {
@@ -80,13 +92,28 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               {alarmCount > 0 && <span className="text-danger"> · {alarmCount} en alarme</span>}
             </p>
           </div>
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="bg-sap text-base text-sm font-medium px-4 py-2 rounded hover:opacity-90 transition-opacity"
-          >
-            + Nouveau capteur
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="text-sm border border-line text-muted hover:text-text px-3 py-2 rounded transition-colors disabled:opacity-40"
+            >
+              {refreshing ? 'Actualisation…' : '↻ Actualiser'}
+            </button>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="bg-sap text-base text-sm font-medium px-4 py-2 rounded hover:opacity-90 transition-opacity"
+            >
+              + Nouveau capteur
+            </button>
+          </div>
         </header>
+
+        {bootError && (
+          <div className="px-6 py-3 bg-danger/10 border-b border-danger/30 text-sm text-danger">
+            <strong>Échec de chargement des données Smartrek :</strong> {bootError}
+          </div>
+        )}
 
         <div className="px-6 py-3 border-b border-line flex gap-1">
           {STATUS_FILTERS.map((f) => (

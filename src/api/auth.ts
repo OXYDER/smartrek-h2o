@@ -42,7 +42,7 @@
  * le navigateur.
  */
 
-const API_BASE = import.meta.env.VITE_SMARTREK_API_BASE ?? 'https://data3.smartrek.io/api'
+export const API_BASE = import.meta.env.VITE_SMARTREK_API_BASE ?? 'https://data3.smartrek.io/api'
 const SESSION_KEY = 'smartrek_h2o_token'
 
 export interface LoginResponse {

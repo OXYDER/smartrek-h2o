@@ -25,7 +25,8 @@
  * qu'on n'a pas cette table de correspondance.
  */
 
-const SENTINEL_INT16 = -100 // 0xFF9C — canal inutilisé/pas de donnée
+const SENTINEL_UNUSED_SLOT = -100 // 0xFF9C — canal non câblé (emplacement générique inutilisé)
+const SENTINEL_PORT_ABSENT = 320 // 0x7D00 — port qui n'existe pas physiquement sur ce modèle d'appareil
 
 export interface DecodedChannel {
   index: number
@@ -67,7 +68,9 @@ export function decodeDats(b64: string): DecodedDats {
   const channelOffsets = [10, 12, 15, 17]
   const channels: DecodedChannel[] = channelOffsets.map((offset, i) => {
     const raw = readInt16LE(bytes, offset)
-    return { index: i, rawValue: raw / 100, active: raw !== SENTINEL_INT16 }
+    const value = raw / 100
+    const active = raw !== SENTINEL_UNUSED_SLOT && value !== SENTINEL_PORT_ABSENT
+    return { index: i, rawValue: value, active }
   })
 
   // Canaux additionnels inutilisés (sentinelle), à partir de l'octet 19,
@@ -76,7 +79,9 @@ export function decodeDats(b64: string): DecodedDats {
   let extraIndex = channelOffsets.length
   while (extraOffset + 1 < bytes.length - 3) {
     const raw = readInt16LE(bytes, extraOffset)
-    channels.push({ index: extraIndex, rawValue: raw / 100, active: raw !== SENTINEL_INT16 })
+    const value = raw / 100
+    const active = raw !== SENTINEL_UNUSED_SLOT && value !== SENTINEL_PORT_ABSENT
+    channels.push({ index: extraIndex, rawValue: value, active })
     extraOffset += 4
     extraIndex += 1
   }

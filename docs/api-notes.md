@@ -40,6 +40,21 @@ Content-Type: application/json
 | status | number | 0 observé jusqu'ici |
 | timestamp | string | timestamp ms (dupliqué dans `dats`) |
 
+### Contexte physique — capteurs de vide
+
+Les capteurs de vide (`vacuum`) existent en modèles à **1, 2 ou 3 ports**,
+chaque port connectant une ligne de tubulure 5/16" de sève et lisant son
+propre taux de vide. Chaque appareil inclut aussi une sonde de
+température intégrée — donc un capteur 3 ports = 4 canaux (3 vide + 1
+température), un capteur 1 port = 2 canaux (1 vide + 1 température).
+
+Deuxième code sentinelle découvert : quand un port n'existe pas
+**physiquement** sur le modèle (ex. canaux 2/3 d'un appareil 1 port), la
+valeur lue est `32000` brut (`0x7D00`) → affichée `320.00`, distincte de
+la sentinelle `0xFF9C`/-100 vue ailleurs pour les canaux non câblés.
+Confirmé sur `extracteur`/`13`/`14` (1 port actif, canaux 2-3 à 320.00) et
+`15 +niche` (2 ports actifs, canal 3 à 320.00).
+
 ### Format du champ `dats` (décodage validé ✓)
 
 Confirmé en comparant les valeurs décodées aux valeurs affichées dans

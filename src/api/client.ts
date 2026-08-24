@@ -61,7 +61,7 @@ export const smartrekClient = {
   async createSensor(input: {
     name: string
     siteId: string
-    initialChannel: { label: string; kind: ChannelKind; unit: string }
+    channels: { label: string; kind: ChannelKind; unit: string }[]
   }): Promise<Sensor> {
     // TODO(réel): endpoint de création de capteur — pas encore capturé
     const sensor: Sensor = {
@@ -70,17 +70,15 @@ export const smartrekClient = {
       siteId: input.siteId,
       status: 'offline',
       lastReadingAt: new Date().toISOString(),
-      channels: [
-        {
-          id: uid('ch'),
-          label: input.initialChannel.label,
-          kind: input.initialChannel.kind,
-          unit: input.initialChannel.unit,
-          currentValue: 0,
-          history: [],
-          thresholds: [],
-        },
-      ],
+      channels: input.channels.map((c) => ({
+        id: uid('ch'),
+        label: c.label,
+        kind: c.kind,
+        unit: c.unit,
+        currentValue: 0,
+        history: [],
+        thresholds: [],
+      })),
       notificationChannels: [],
     }
     sensors = [...sensors, sensor]

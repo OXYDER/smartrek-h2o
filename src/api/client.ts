@@ -30,8 +30,16 @@ function uid(prefix: string) {
 
 export const smartrekClient = {
   async listSites(): Promise<Site[]> {
-    // TODO(réel): GET /api/sites
+    // TODO(réel): GET /api/sites — ou dérivé des row_items de type 5 (passerelle) sur /boot
     return delay(sites)
+  },
+
+  async updateSite(id: string, patch: Partial<Site>): Promise<Site | undefined> {
+    // TODO(réel): PATCH /api/sites/:id — ou endpoint de renommage de la passerelle
+    const idx = sites.findIndex((s) => s.id === id)
+    if (idx === -1) return delay(undefined)
+    sites[idx] = { ...sites[idx], ...patch }
+    return delay(sites[idx])
   },
 
   async listSensors(siteId?: string): Promise<Sensor[]> {

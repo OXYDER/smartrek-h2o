@@ -45,6 +45,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     setSensors((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
   }
 
+  async function renameSite(id: string, name: string) {
+    const updated = await smartrekClient.updateSite(id, { name })
+    if (updated) {
+      setSites((prev) => prev.map((s) => (s.id === id ? updated : s)))
+    }
+  }
+
   function removeSensorFromList(id: string) {
     setSensors((prev) => prev.filter((s) => s.id !== id))
     setOpenSensorId(null)
@@ -54,7 +61,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="flex h-screen bg-base text-text">
-      <Sidebar sites={sites} activeSiteId={activeSiteId} onSelect={setActiveSiteId} onLogout={onLogout} />
+      <Sidebar
+        sites={sites}
+        activeSiteId={activeSiteId}
+        onSelect={setActiveSiteId}
+        onRenameSite={renameSite}
+        onLogout={onLogout}
+      />
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="border-b border-line px-6 py-4 flex items-center justify-between">

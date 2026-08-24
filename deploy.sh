@@ -18,6 +18,9 @@ curl -fsSL "$REPO_RAW/docker-compose.yml" -o docker-compose.yml
 echo "→ Pull de la dernière image depuis GHCR..."
 docker compose pull
 
+echo "→ Suppression de tout conteneur existant portant ce nom (évite les conflits, peu importe qui l'a créé — Portainer, une exécution précédente, etc.)..."
+docker rm -f smartrek-h2o > /dev/null 2>&1 || true
+
 echo "→ Redémarrage du conteneur..."
 docker compose up -d
 

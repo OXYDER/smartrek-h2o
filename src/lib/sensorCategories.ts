@@ -43,7 +43,10 @@ export function sensorMatchesCategory(sensor: Sensor, categoryId: string): boole
     case 'tensiometer':
       return sensor.channels.some((c) => c.kind === 'tensiometer')
     case 'remote':
-      return sensor.deviceType === 10
+      // type 2 = "A-Link Valve" — vraie unité de contrôle à distance (2
+      // canaux relais). Les répéteurs (type 10) sont de l'infrastructure
+      // réseau, pas des capteurs — ils ne rentrent dans aucune catégorie.
+      return sensor.deviceType === 2
     default:
       return false
   }

@@ -180,55 +180,59 @@ POST https://data3.smartrek.io/api/Alarms/get-user-alarm-activities-with-limit
 Body `{ "limit": 10, "skip": 1 }` → `{ "alarmActivities": [] }` —
 journal paginé des alarmes déclenchées, vide ici.
 
-### Autres types de nœuds découverts (capture HAR élargie)
+### Autres types de nœuds découverts
 
-En plus de `type: 5` (passerelle) et `type: 0` (capteur de vide), un compte
-avec plus de nœuds a révélé :
+En plus de `type: 5` (passerelle) et `type: 0` (capteur de vide) :
 
-- **`type: 1`** — ex. `Bassin S3`, `Bassin S4`. Payload `dats` de **24
-  octets** (vs 34 pour le vide) — structure différente, pas encore
-  décodée. Probablement un capteur de **niveau** (bassin de rétention).
-- **`type: 10`** — ex. `répéteur bord chalet`, `répét 1`. Payload de
-  seulement **11 octets**. C'est un **répéteur radio** (relais réseau),
-  pas un capteur de mesure.
+- **`type: 1`** — capteur de **niveau/bassin** (ex. `Bassin S3`,
+  `Bassin Lapierre`). Payload de 24 octets, entièrement décodé (voir plus
+  bas).
+- **`type: 2`** — « A-Link Valve » — le vrai **contrôle à distance**, 2
+  canaux relais (`Channel 1`/`Channel 2`, interrupteur on/off dans
+  l'app). Un seul exemple capturé (`status: 3` = « Dead node », les 2
+  canaux à `0`/éteint) — pas assez de variation pour repérer les octets
+  qui encodent leur état ; il faudrait un exemple avec au moins un canal
+  allumé.
+- **`type: 10`** — **répéteur radio** (relais réseau, ex. `répét 1`),
+  pas un capteur de mesure. Payload de 11 octets.
 
-### Bassin/niveau (`type: 1`) — dats décodé ✓ (configuration, pas de lecture live)
+### Niveau de bassin (`type: 1`) — payload décodé, mais pas de lecture live
 
-Grâce à l'écran de détail natif de l'app (« Détails du A-Link Bassin S3 »),
-qui affiche batterie + config de calibration côte à côte, le payload de
-24 octets est maintenant entièrement compris :
+Grâce à l'écran de détail natif de l'app (batterie + config de
+calibration affichées ensemble), le payload de 24 octets est
+entièrement compris :
 
 | Octets (absolu) | Contenu | Formule |
 |---|---|---|
 | 0-7 | Timestamp Unix ms | `uint64 LE` |
 | 13 | **Batterie** | `octet × 4 − 261` (même formule que le vide, décalée d'1 octet) |
 | 14-15 | Calibration du zéro (in) | `int16 LE / 10` |
-| 16-17 | Niveau élevé — **le "max" qu'on avait trouvé** (in) | `int16 LE / 10` |
+| 16-17 | Niveau élevé (= le "max" affiché, in) | `int16 LE / 10` |
 | 18-19 | Niveau en avertissement (in) | `int16 LE / 10` |
 | 20-21 | Niveau en priorité (in) | `int16 LE / 10` |
 | 22-23 | Niveau bas (in) | `int16 LE / 10` (`-1` = non configuré) |
 
-Validé exactement sur Bassin S3 et S4 (5 valeurs de config + batterie,
-match parfait sur les 12 nombres).
+Validé sur **6 échantillons** (`S3`, `S4`, `Lapierre`, `station`, `h20`,
+`Concentré`, avec des plages/max complètement différents) : le "max"
+matche parfaitement sur les 6, et les 5 valeurs de config + batterie de
+S3/S4 matchent exactement contre l'écran natif de l'app.
 
-**Ce `dats` ne contient QUE de la configuration/calibration — pas de
-lecture de niveau en direct.** C'est pour ça qu'on ne trouvait jamais le
-courant (`6.3 in`, `9.1 in`) malgré une recherche exhaustive : il n'est
-juste pas dans ce blob. L'écran de détail de l'app affiche lui-même
-« Aucune donnée récente disponible » pour ces deux bassins — la valeur
-`6.3`/`9.1` affichée ailleurs est probablement une dernière valeur mise
-en cache côté serveur (base de données), pas quelque chose de dérivable
-depuis `/boot`. Il faudrait un capteur de niveau **actif** (qui transmet
-encore) pour voir à quoi ressemble une vraie lecture live, si ce type de
-payload en contient une différente une fois en ligne.
+**Conclusion définitive : ce `dats` ne contient QUE la
+configuration/calibration, jamais la lecture de niveau actuelle.**
+Recherche exhaustive (LE/BE, toutes les échelles) sur les 6 échantillons
+: aucun octet ne correspond au niveau affiché (`6.3 in`, `3.0 in`, etc.)
+dans aucun cas. L'écran natif de l'app confirme lui-même « Aucune donnée
+récente disponible » pour ces bassins — la valeur affichée est
+probablement une dernière lecture mise en cache côté serveur, pas
+dérivable depuis `/boot`. Dossier fermé sauf nouvelle piste externe (un
+autre endpoint qui la retournerait séparément), ou un capteur de niveau
+**actif** à capturer pour voir si le payload change une fois en ligne.
 
-Implémenté : `decodeBatteryPercent(dats, 13)` pour la batterie. La
-configuration (seuils) n'est pas encore branchée dans l'app — pas de cas
-d'usage clair identifié pour l'instant (ce sont les seuils de Smartrek
-eux-mêmes, pas les nôtres).
+Implémenté : `decodeBatteryPercent(dats, 13)`. La config (seuils) n'est
+pas branchée dans l'app — pas de cas d'usage clair identifié pour
+l'instant (ce sont les seuils de Smartrek eux-mêmes, pas les nôtres).
 
-L'octet à l'index **14** du payload complet (34 octets pour un capteur de
-vide) encode le pourcentage de batterie :
+### Batterie des capteurs de vide — formule
 
 ```
 batterie% = octet[14] × 4 − 261
@@ -236,19 +240,15 @@ batterie% = octet[14] × 4 − 261
 
 Validé sur 4 capteurs réels avec la valeur affichée à l'écran en
 parallèle (`1`→79%, `2`→79%, `12-13-14`→75%, `23-24`→71%) — match exact
-sans arrondi dans les 4 cas. C'est l'octet qu'on avait pris pour une
-« constante protocolaire ~78-86 » tout au début de l'exploration —
-c'était la batterie depuis le départ.
+sans arrondi. C'était l'octet pris pour une « constante protocolaire
+~78-86 » tout au début de l'exploration.
 
-⚠️ Formule confirmée uniquement pour `type: 0` (capteurs de vide, 34
-octets). Les répéteurs (`type: 10`, affichent aussi un %, ex. `répét 1`
-→ 67%) ont une structure de payload différente (11 octets). Tentative de
-calibration sur 3 échantillons : `rest[2]` (82, 82, 77) donne bien 67%
-pour les deux appareils à 82 — cohérent — mais la pente calculée entre
-82→67% et 77→46% n'est pas un nombre entier propre (4.2), ce qui est
-suspect comparé au `×4 - 261` net des capteurs de vide. Pas assez
-confiant pour l'implémenter — mieux vaut un 4e point de calibration
-qu'une formule probablement fausse.
+⚠️ Répéteurs (`type: 10`, 11 octets) : tentative de calibration sur 3
+échantillons — `rest[2]` (82, 82, 77) donne bien 67% pour les deux
+appareils à 82, mais la pente calculée entre 82→67% et 77→46% n'est pas
+un nombre entier propre (4.2), suspect comparé au `×4 - 261` net du
+vide. Pas implémenté — mieux vaut un 4e point de calibration qu'une
+formule probablement fausse.
 
 Implémenté dans `src/api/decodeDats.ts::decodeBatteryPercent()`.
 
@@ -263,4 +263,5 @@ Implémenté dans `src/api/decodeDats.ts::decodeBatteryPercent()`.
 - [x] **Batterie** : `octet[14] × 4 − 261`, validé sur 4 capteurs réels
 - [ ] Formule batterie pour les répéteurs (`type: 10`) — structure de payload différente
 - [ ] Décoder le `dats` du type `1` (Bassin/niveau, 24 octets) avec une valeur affichée en parallèle
-- [ ] Confirmer si le type `10` (répéteur) doit apparaître dans l'UI de gestion des capteurs, ou être filtré (ce n'est pas un capteur de mesure)
+- [x] Type `10` (répéteur) inclus dans l'UI (compté mais dans aucune catégorie nommée)
+- [ ] Décoder l'état des 2 canaux relais du contrôle à distance (`type: 2`) — besoin d'un exemple avec un canal allumé

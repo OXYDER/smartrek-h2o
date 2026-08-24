@@ -118,9 +118,11 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
               <p className="text-sm text-muted italic">
                 {sensor.deviceType === 1
                   ? "Aucune donnée récente disponible — ce capteur de niveau ne transmet que sa configuration de calibration, pas de lecture en direct dans les données reçues."
-                  : sensor.deviceType === 10
-                    ? 'Répéteur réseau — pas un capteur de mesure.'
-                    : "Lecture pas encore décodée pour ce type d'appareil."}
+                  : sensor.deviceType === 2
+                    ? 'Contrôle à distance (2 canaux relais) — état des canaux pas encore décodé.'
+                    : sensor.deviceType === 10
+                      ? 'Répéteur réseau — pas un capteur de mesure.'
+                      : "Lecture pas encore décodée pour ce type d'appareil."}
               </p>
             )}
 

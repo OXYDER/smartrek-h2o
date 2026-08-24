@@ -6,6 +6,7 @@ import { CHANNEL_KIND_LABELS } from '../types/sensor'
  * côté API réelle, basé sur le deviceType brut. */
 export function getSensorTypeLabel(sensor: Sensor): string {
   if (sensor.deviceType === 1) return 'Niveau de bassin'
+  if (sensor.deviceType === 2) return 'Contrôle à distance'
   if (sensor.deviceType === 10) return 'Répéteur'
 
   const vacuumCount = sensor.channels.filter((c) => c.kind === 'vacuum').length

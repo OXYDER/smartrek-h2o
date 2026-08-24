@@ -1,5 +1,23 @@
 # Notes API Smartrek H2O (reverse engineering)
 
+## Endpoint : login
+```
+POST https://data3.smartrek.io/api/Account/login
+Content-Type: application/json
+```
+Body :
+```json
+{
+  "email": "<email du compte>",
+  "domain": "<identique à email observé>",
+  "password": "<mot de passe>",
+  "sessionId": "<uuid généré côté client, ex crypto.randomUUID()>"
+}
+```
+- Le `sessionId` semble être un UUID v4 généré à chaque nouvelle session/appareil, pas un identifiant fixe.
+- Réponse : pas encore capturée en entier — à confirmer la forme exacte (JWT direct dans le body ? `token`/`accessToken` ? refresh token séparé ?).
+- ⚠️ Ne jamais committer de vrais identifiants — ils vivent uniquement dans `.env` local (voir `.env.example`), chargé par `src/api/auth.ts`.
+
 ## Endpoint : boot
 ```
 POST https://data3.smartrek.io/api/v2/boot
@@ -28,7 +46,8 @@ Content-Type: application/json
 - TODO : comparer avec les valeurs affichées dans l'UI pour un capteur donné afin de déduire l'échelle/l'unité par canal.
 
 ## À capturer encore
-- [ ] Requête de login (pour obtenir le JWT par programmation)
+- [x] Requête de login (structure connue — réponse complète encore à confirmer)
+- [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)
 - [ ] Requête refreshtoken complète (headers + body + réponse)
 - [ ] Détail/historique d'un capteur avec valeurs affichées à l'écran en parallèle (pour calibrer `dats`)
 - [ ] Requête de modification (seuils, alertes) si elle existe dans l'app d'origine

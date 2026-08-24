@@ -92,9 +92,69 @@ capteurs (débit, niveau, etc.) au fur et à mesure qu'on en capture.
 
 Implémenté dans `src/api/decodeDats.ts`.
 
+## Endpoint : v2/refresh (polling léger)
+```
+POST https://data3.smartrek.io/api/v2/refresh
+Authorization: Bearer <JWT>
+```
+Body : `{ "userId": "<id utilisateur>" }`
+Réponse : même forme que `/boot` (`nodes[]` + `differentials`). C'est
+l'endpoint utilisé pour le **polling en direct** — appelé en boucle
+(observé ~toutes les 5s dans une session réelle) pour garder l'UI à jour
+sans refaire un `/boot` complet à chaque fois. Le `userId` s'obtient du
+profil utilisateur (visible aussi dans la réponse de
+`get-user-alarm-recipient-groups`, champ `userId`).
+
+## Endpoint : Nodes/query (historique — partiellement compris)
+```
+POST https://data3.smartrek.io/api/Nodes/query
+```
+Body : `{ "start": <ms>, "end": <ms>, "macs": [<id capteur>] }` — malgré
+le nom `macs`, ce sont en fait les **id numériques des capteurs** (pas
+des adresses MAC).
+Réponse observée : `{ "<id>": "" }` — vide dans les deux essais capturés
+(plage de 24h). Soit ce compte n'a pas d'historique stocké pour cette
+période, soit il manque un paramètre. À retester en ouvrant un vrai
+graphique d'historique dans l'app avec Network ouvert.
+
+## Endpoints : Alarms/* (seuils & notifications — lecture confirmée, écriture à capturer)
+
+```
+POST https://data3.smartrek.io/api/Alarms/get-user-alarm-rules
+```
+Body `{}` → `{ "alarmRules": [] }` — vide sur ce compte (aucune règle
+configurée), donc la forme exacte d'une règle reste à voir.
+
+```
+POST https://data3.smartrek.io/api/Alarms/get-user-alarm-recipient-groups
+```
+Body `{}` → tableau de groupes de destinataires **partagés** (pas un
+canal de notif par capteur comme on l'avait supposé) :
+```json
+{
+  "_id": "...", "userId": "...", "name": "Default",
+  "email": ["info@..."], "phone": [],
+  "days": [0,1,2,3,4,5,6], "afterTime": 0, "beforeTime": 23,
+  "timezone": "Canada/Eastern", "isMainGroup": true
+}
+```
+⚠️ Ça remet en question notre modèle `notificationChannels` par capteur.
+La vraie architecture semble être : des **groupes de destinataires**
+nommés (avec fenêtre horaire/jours actifs) que des **règles d'alarme**
+référencent ensuite (règle = capteur + canal + seuil + groupe à notifier).
+À confirmer une fois qu'on capture une vraie règle.
+
+```
+POST https://data3.smartrek.io/api/Alarms/get-user-alarm-activities-with-limit
+```
+Body `{ "limit": 10, "skip": 1 }` → `{ "alarmActivities": [] }` —
+journal paginé des alarmes déclenchées, vide ici.
+
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
 - [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)
 - [ ] Requête refreshtoken complète (headers + body + réponse)
-- [ ] Détail/historique d'un capteur avec valeurs affichées à l'écran en parallèle (pour calibrer `dats`)
-- [ ] Requête de modification (seuils, alertes) si elle existe dans l'app d'origine
+- [ ] **Créer une vraie règle d'alarme dans l'app** (seuil sur un capteur) en capturant le réseau — endpoint d'écriture + forme exacte d'une règle
+- [ ] **Créer/modifier un groupe de destinataires** — endpoint d'écriture
+- [ ] Ouvrir un vrai graphique d'historique pour voir si `Nodes/query` retourne des données (et avec quels paramètres exacts)
+- [ ] Détail/historique d'un capteur avec valeurs affichées à l'écran en parallèle (pour calibrer `dats` sur d'autres types que le vide)

@@ -105,11 +105,14 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
         </div>
 
         <div className="p-5 flex flex-col gap-6">
-          {/* Canaux de lecture — fixes de fabrication, non modifiables */}
+          {/* Canaux de lecture — fixes de fabrication, non modifiables.
+              La température est déjà affichée dans l'en-tête ci-dessus. */}
           <section className="flex flex-col gap-3">
             <h4 className="font-display text-sm tracking-wide text-muted uppercase">Canaux</h4>
 
-            {sensor.channels.map((channel) => {
+            {sensor.channels
+              .filter((c) => c.kind !== 'temperature')
+              .map((channel) => {
               const alarming = isChannelAlarming(channel)
               return (
                 <div key={channel.id} className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">

@@ -1,7 +1,7 @@
 import type { Sensor } from '../types/sensor'
-import { CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
+import { getSensorTypeLabel } from '../lib/sensorType'
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('fr-CA', {
@@ -42,13 +42,7 @@ export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => v
             const alarming = isChannelAlarming(c)
             return (
               <div key={c.id} className="flex items-baseline gap-1.5 min-w-0">
-                <span
-                  className={`font-mono text-[10px] w-4 h-4 shrink-0 flex items-center justify-center rounded-full border ${
-                    alarming ? 'border-danger text-danger' : 'border-line text-muted'
-                  }`}
-                >
-                  {CHANNEL_KIND_ABBR[c.kind]}
-                </span>
+                <span className={`font-mono text-xs ${alarming ? 'text-danger' : 'text-muted'}`}>{c.label}</span>
                 <span className={`font-mono text-sm tabular-nums truncate ${alarming ? 'text-danger' : ''}`}>
                   {c.currentValue}
                   <span className="text-muted text-xs ml-0.5">{c.unit}</span>
@@ -63,7 +57,7 @@ export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => v
 
       <div className="flex items-center justify-between text-xs font-mono text-muted pt-2 border-t border-line">
         <span>Maj {formatDateTime(sensor.lastReadingAt)}</span>
-        <span>{sensor.channels.length} canal{sensor.channels.length !== 1 ? 'aux' : ''}</span>
+        <span>{getSensorTypeLabel(sensor)}</span>
       </div>
     </button>
   )

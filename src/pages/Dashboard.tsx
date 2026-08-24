@@ -132,7 +132,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-canvas">
           {loading ? (
             <p className="text-muted font-mono text-sm">Chargement…</p>
           ) : filtered.length === 0 ? (

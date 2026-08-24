@@ -43,12 +43,14 @@ export function Sidebar({ sites, activeSiteId, onSelect, onRenameSite, onLogout 
         >
           Tous les sites
         </button>
-        {sites.map((site) => (
+        {sites.map((site, i) => (
           <div
             key={site.id}
             onClick={() => editingId !== site.id && onSelect(site.id)}
             className={`group text-left px-3 py-2 rounded transition-colors cursor-pointer ${
-              activeSiteId === site.id ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+              activeSiteId === site.id
+                ? 'bg-panel-raised text-sap'
+                : `text-muted hover:text-text ${i % 2 === 0 ? 'bg-transparent' : 'bg-panel-raised/40'}`
             }`}
           >
             {editingId === site.id ? (

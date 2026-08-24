@@ -40,10 +40,33 @@ Content-Type: application/json
 | status | number | 0 observé jusqu'ici |
 | timestamp | string | timestamp ms (dupliqué dans `dats`) |
 
-### Format du champ `dats` (32 octets décodés)
-- Octets 0–7 : timestamp Unix en **millisecondes**, `uint64 little-endian` — confirmé identique au champ `timestamp`
-- Octets 8–31 : payload de lecture(s), format encore à calibrer. `0xff9c` (little-endian) apparaît comme valeur sentinelle probable pour "canal inutilisé/pas de donnée".
-- TODO : comparer avec les valeurs affichées dans l'UI pour un capteur donné afin de déduire l'échelle/l'unité par canal.
+### Format du champ `dats` (décodage validé ✓)
+
+Confirmé en comparant les valeurs décodées aux valeurs affichées dans
+l'app d'origine, pour 4 capteurs réels (site « Cabane », capteurs
+1-2-3, 4-5-6, 7-8-9, 10-11-12) :
+
+| Octets | Contenu |
+|---|---|
+| 0-7 | Timestamp Unix ms (`uint64` little-endian) — confirmé identique au champ `timestamp` |
+| 8 | `0x00` fixe — fonction inconnue |
+| 9 | Variable — fonction inconnue (pas une lecture) |
+| 10-11 | Canal 1 — `int16 LE / 100` |
+| 12-13 | Canal 2 (température sur les capteurs testés) — `int16 LE / 100` |
+| 14 | Variable — fonction inconnue |
+| 15-16 | Canal 3 — `int16 LE / 100` |
+| 17-18 | Canal 4 — `int16 LE / 100` |
+| 19+ | Canaux additionnels non utilisés sur ces capteurs, par blocs de 4 octets (`int16` sentinelle `0xFF9C` = -100 + 2 octets à 0) |
+| 3 derniers octets | Trailer constant observé (`a9 e1 0c`) — fonction inconnue, ignoré |
+
+⚠️ Le **type** de chaque canal (vide, température, débit...) n'est pas
+encodé dans `dats` — il dépend du modèle physique du capteur
+(`serialNumber`). Sur les capteurs testés (vide + température),
+canal 1/3/4 = pression (inHg), canal 2 = température (°C). Cette
+correspondance canal↔type devra être confirmée pour d'autres types de
+capteurs (débit, niveau, etc.) au fur et à mesure qu'on en capture.
+
+Implémenté dans `src/api/decodeDats.ts`.
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)

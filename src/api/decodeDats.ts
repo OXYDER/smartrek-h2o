@@ -1,0 +1,85 @@
+/**
+ * Décodage du champ binaire `dats` (base64) retourné par l'API Smartrek H2O
+ * sur /api/v2/boot. Formule reverse-engineered et validée en comparant le
+ * payload décodé aux valeurs affichées dans l'app d'origine, pour 4
+ * capteurs réels (voir docs/api-notes.md pour le détail de la validation).
+ *
+ * Structure (payload complet, 32-34 octets selon le nombre de canaux) :
+ *   octets 0-7   : timestamp Unix en millisecondes (uint64 little-endian)
+ *   octet  8     : 0x00 fixe — fonction inconnue
+ *   octet  9     : variable — fonction inconnue (pas un octet de lecture)
+ *   octets 10-11 : canal 1 (int16 LE / 100)
+ *   octets 12-13 : canal 2 — température (int16 LE / 100)
+ *   octet  14    : variable — fonction inconnue
+ *   octets 15-16 : canal 3 (int16 LE / 100)
+ *   octets 17-18 : canal 4 (int16 LE / 100)
+ *   octets 19+   : canaux additionnels non utilisés, valeur sentinelle
+ *                  0xFF9C (= -100 en int16) quand le canal n'est pas actif
+ *   3 derniers octets : trailer constant observé (a9 e1 0c) — fonction
+ *                  inconnue, ignoré
+ *
+ * Le TYPE de chaque canal (vide/pression, température, débit, etc.) n'est
+ * pas encodé dans `dats` lui-même — il dépend du modèle de capteur
+ * (serialNumber) et n'a pas encore été capturé ailleurs dans l'API. Pour
+ * l'instant on décode les valeurs brutes sans deviner leur unité tant
+ * qu'on n'a pas cette table de correspondance.
+ */
+
+const SENTINEL_INT16 = -100 // 0xFF9C — canal inutilisé/pas de donnée
+
+export interface DecodedChannel {
+  index: number
+  rawValue: number
+  active: boolean
+}
+
+export interface DecodedDats {
+  timestampMs: number
+  channels: DecodedChannel[]
+}
+
+function readInt16LE(bytes: Uint8Array, offset: number): number {
+  const val = bytes[offset] | (bytes[offset + 1] << 8)
+  return val > 0x7fff ? val - 0x10000 : val
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes
+}
+
+export function decodeDats(b64: string): DecodedDats {
+  const bytes = base64ToBytes(b64)
+
+  // Timestamp : uint64 LE sur 8 octets. JS ne gère pas nativement les
+  // uint64 au-delà de 2^53 en bitwise — on le reconstruit via BigInt puis
+  // on repasse en Number (les timestamps ms restent bien en dessous de la
+  // limite de précision sûre jusqu'à l'an ~285000).
+  let tsBig = 0n
+  for (let i = 7; i >= 0; i--) {
+    tsBig = (tsBig << 8n) | BigInt(bytes[i])
+  }
+  const timestampMs = Number(tsBig)
+
+  // Offsets connus des canaux de lecture, relatifs au début du buffer.
+  const channelOffsets = [10, 12, 15, 17]
+  const channels: DecodedChannel[] = channelOffsets.map((offset, i) => {
+    const raw = readInt16LE(bytes, offset)
+    return { index: i, rawValue: raw / 100, active: raw !== SENTINEL_INT16 }
+  })
+
+  // Canaux additionnels inutilisés (sentinelle), à partir de l'octet 19,
+  // par blocs de 4 (int16 valeur + 2 octets de remplissage à 0).
+  let extraOffset = 19
+  let extraIndex = channelOffsets.length
+  while (extraOffset + 1 < bytes.length - 3) {
+    const raw = readInt16LE(bytes, extraOffset)
+    channels.push({ index: extraIndex, rawValue: raw / 100, active: raw !== SENTINEL_INT16 })
+    extraOffset += 4
+    extraIndex += 1
+  }
+
+  return { timestampMs, channels }
+}

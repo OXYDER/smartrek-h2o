@@ -1,9 +1,13 @@
 import type { Sensor } from '../types/sensor'
 import { CHANNEL_KIND_LABELS } from '../types/sensor'
 
-/** Nom commercial du modèle, déduit du nombre de ports de vide.
- * Les capteurs de vide existent en 3 modèles de fabrique : 1, 2 ou 3 ports. */
+/** Nom commercial du modèle. Pour les capteurs de vide, déduit du nombre
+ * de ports (fabrication 1/2/3 ports). Pour les autres types découverts
+ * côté API réelle, basé sur le deviceType brut. */
 export function getSensorTypeLabel(sensor: Sensor): string {
+  if (sensor.deviceType === 1) return 'Niveau de bassin'
+  if (sensor.deviceType === 10) return 'Répéteur'
+
   const vacuumCount = sensor.channels.filter((c) => c.kind === 'vacuum').length
 
   if (vacuumCount === 1) return 'Vacuum simple'

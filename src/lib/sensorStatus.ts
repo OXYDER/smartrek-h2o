@@ -14,7 +14,6 @@ export function isChannelAlarming(channel: Sensor['channels'][number]): boolean 
 }
 
 export function getSensorStatus(sensor: Pick<Sensor, 'channels' | 'lastReadingAt'>): SensorStatus {
-  if (sensor.channels.length === 0) return 'offline'
   const ageMs = Date.now() - new Date(sensor.lastReadingAt).getTime()
   if (ageMs > STALE_AFTER_MS) return 'offline'
   if (sensor.channels.some(isChannelAlarming)) return 'alarm'

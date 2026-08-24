@@ -114,6 +114,12 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
           <section className="flex flex-col gap-3">
             <h4 className="font-display text-sm tracking-wide text-muted uppercase">Canaux</h4>
 
+            {sensor.channels.length === 0 && (
+              <p className="text-sm text-muted italic">
+                Lecture pas encore décodée pour ce type d'appareil ({sensor.deviceType === 1 ? 'niveau' : sensor.deviceType === 10 ? 'répéteur' : 'inconnu'}).
+              </p>
+            )}
+
             {sensor.channels
               .filter((c) => c.kind !== 'temperature')
               .map((channel) => {

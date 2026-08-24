@@ -49,6 +49,10 @@ export interface Sensor {
   serialNumber?: string
   siteId: string
   lastReadingAt: string // ISO timestamp
+  /** Type brut du nœud côté API Smartrek (0=vide, 1=niveau/bassin, 5=passerelle, 10=répéteur).
+   * Utilisé pour classer les capteurs dont on n'a pas encore décodé les
+   * lectures (ex. niveau de bassin, répéteurs). */
+  deviceType?: number
   batteryPercent?: number
   channels: SensorChannel[]
   notificationChannels: NotificationChannel[]

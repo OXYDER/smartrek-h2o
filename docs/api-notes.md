@@ -209,8 +209,13 @@ c'était la batterie depuis le départ.
 
 ⚠️ Formule confirmée uniquement pour `type: 0` (capteurs de vide, 34
 octets). Les répéteurs (`type: 10`, affichent aussi un %, ex. `répét 1`
-→ 67%) ont une structure de payload différente (11 octets) — formule pas
-encore trouvée pour eux.
+→ 67%) ont une structure de payload différente (11 octets). Tentative de
+calibration sur 3 échantillons : `rest[2]` (82, 82, 77) donne bien 67%
+pour les deux appareils à 82 — cohérent — mais la pente calculée entre
+82→67% et 77→46% n'est pas un nombre entier propre (4.2), ce qui est
+suspect comparé au `×4 - 261` net des capteurs de vide. Pas assez
+confiant pour l'implémenter — mieux vaut un 4e point de calibration
+qu'une formule probablement fausse.
 
 Implémenté dans `src/api/decodeDats.ts::decodeBatteryPercent()`.
 

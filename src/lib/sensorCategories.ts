@@ -13,20 +13,37 @@ export const SENSOR_CATEGORIES: SensorCategory[] = [
   { id: 'tensiometer', label: 'Tensiomètre' },
 ]
 
+export const VACUUM_SUBCATEGORIES: { id: string; label: string; portCount: number }[] = [
+  { id: 'vacuum:simple', label: 'Simple', portCount: 1 },
+  { id: 'vacuum:double', label: 'Double', portCount: 2 },
+  { id: 'vacuum:triple', label: 'Triple', portCount: 3 },
+]
+
+function vacuumPortCount(sensor: Sensor): number {
+  return sensor.channels.filter((c) => c.kind === 'vacuum').length
+}
+
 export function sensorMatchesCategory(sensor: Sensor, categoryId: string): boolean {
+  if (categoryId.startsWith('vacuum:')) {
+    const variant = categoryId.split(':')[1]
+    const count = vacuumPortCount(sensor)
+    if (variant === 'simple') return count === 1
+    if (variant === 'double') return count === 2
+    if (variant === 'triple') return count === 3
+    return false
+  }
+
   switch (categoryId) {
     case 'vacuum':
-      return sensor.channels.some((c) => c.kind === 'vacuum')
+      return sensor.deviceType === 0 || sensor.channels.some((c) => c.kind === 'vacuum')
     case 'level':
-      return sensor.channels.some((c) => c.kind === 'level')
+      return sensor.deviceType === 1 || sensor.channels.some((c) => c.kind === 'level')
     case 'flow':
       return sensor.channels.some((c) => c.kind === 'flow')
     case 'tensiometer':
       return sensor.channels.some((c) => c.kind === 'tensiometer')
     case 'remote':
-      // Pas encore de capteurs de ce type dans les vraies données capturées
-      // — catégorie prévue pour plus tard (relais/actionneurs à distance).
-      return false
+      return sensor.deviceType === 10
     default:
       return false
   }

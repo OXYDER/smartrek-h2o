@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Sensor, Site } from '../types/sensor'
-import { SENSOR_CATEGORIES, sensorMatchesCategory } from '../lib/sensorCategories'
+import { SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES, sensorMatchesCategory } from '../lib/sensorCategories'
 
 interface Props {
   sites: Site[]
@@ -60,6 +60,7 @@ export function Sidebar({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null)
+  const [vacuumExpanded, setVacuumExpanded] = useState(false)
 
   function startEditing(site: Site, e: React.MouseEvent) {
     e.stopPropagation()
@@ -77,6 +78,7 @@ export function Sidebar({
   function toggleSite(site: Site) {
     const willExpand = expandedSiteId !== site.id
     setExpandedSiteId(willExpand ? site.id : null)
+    setVacuumExpanded(false)
     if (willExpand) {
       onSelectCategory(site.id, null)
     }
@@ -177,18 +179,74 @@ export function Sidebar({
                         onClose()
                       }}
                     />
-                    {SENSOR_CATEGORIES.map((cat) => (
-                      <CategoryRow
-                        key={cat.id}
-                        label={cat.label}
-                        count={siteSensors.filter((s) => sensorMatchesCategory(s, cat.id)).length}
-                        active={activeSiteId === site.id && activeCategory === cat.id}
-                        onClick={() => {
-                          onSelectCategory(site.id, cat.id)
-                          onClose()
-                        }}
-                      />
-                    ))}
+                    {SENSOR_CATEGORIES.map((cat) => {
+                      const count = siteSensors.filter((s) => sensorMatchesCategory(s, cat.id)).length
+                      if (cat.id === 'vacuum') {
+                        return (
+                          <div key={cat.id}>
+                            <button
+                              onClick={() => setVacuumExpanded((v) => !v)}
+                              className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
+                                activeSiteId === site.id && activeCategory === 'vacuum'
+                                  ? 'bg-panel-raised text-sap'
+                                  : 'text-muted hover:text-text'
+                              }`}
+                            >
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span className="text-[10px]">{vacuumExpanded ? '▾' : '▸'}</span>
+                                {cat.label}
+                              </span>
+                              <span
+                                className={`font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border ${
+                                  activeSiteId === site.id && activeCategory === 'vacuum'
+                                    ? 'border-sap text-sap'
+                                    : 'border-line text-muted'
+                                }`}
+                              >
+                                {count}
+                              </span>
+                            </button>
+                            {vacuumExpanded && (
+                              <div className="pl-4 flex flex-col gap-0.5">
+                                <CategoryRow
+                                  label="Tous les vacuum"
+                                  count={count}
+                                  active={activeSiteId === site.id && activeCategory === 'vacuum'}
+                                  onClick={() => {
+                                    onSelectCategory(site.id, 'vacuum')
+                                    onClose()
+                                  }}
+                                />
+                                {VACUUM_SUBCATEGORIES.map((sub) => (
+                                  <CategoryRow
+                                    key={sub.id}
+                                    label={sub.label}
+                                    count={siteSensors.filter((s) => sensorMatchesCategory(s, sub.id)).length}
+                                    active={activeSiteId === site.id && activeCategory === sub.id}
+                                    onClick={() => {
+                                      onSelectCategory(site.id, sub.id)
+                                      onClose()
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      return (
+                        <CategoryRow
+                          key={cat.id}
+                          label={cat.label}
+                          count={count}
+                          active={activeSiteId === site.id && activeCategory === cat.id}
+                          onClick={() => {
+                            onSelectCategory(site.id, cat.id)
+                            onClose()
+                          }}
+                        />
+                      )
+                    })}
                   </div>
                 )}
               </div>

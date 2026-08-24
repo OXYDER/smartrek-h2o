@@ -6,7 +6,7 @@ import { SensorCard } from '../components/SensorCard'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { getSensorStatus } from '../lib/sensorStatus'
-import { sensorMatchesCategory, SENSOR_CATEGORIES } from '../lib/sensorCategories'
+import { sensorMatchesCategory, SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES } from '../lib/sensorCategories'
 
 const STATUS_FILTERS: { value: SensorStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Tous' },
@@ -111,7 +111,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               <h1 className="font-display text-lg sm:text-2xl truncate">
                 {activeSiteId ? sites.find((s) => s.id === activeSiteId)?.name : 'Tous les capteurs'}
                 {activeCategory && (
-                  <span className="text-muted"> — {SENSOR_CATEGORIES.find((c) => c.id === activeCategory)?.label}</span>
+                  <span className="text-muted">
+                    {' '}
+                    —{' '}
+                    {SENSOR_CATEGORIES.find((c) => c.id === activeCategory)?.label ??
+                      VACUUM_SUBCATEGORIES.find((c) => c.id === activeCategory)?.label}
+                  </span>
                 )}
               </h1>
               <p className="text-xs sm:text-sm text-muted font-mono truncate">

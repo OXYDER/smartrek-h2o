@@ -4,9 +4,10 @@ interface Props {
   sites: Site[]
   activeSiteId: string | null
   onSelect: (siteId: string | null) => void
+  onLogout: () => void
 }
 
-export function Sidebar({ sites, activeSiteId, onSelect }: Props) {
+export function Sidebar({ sites, activeSiteId, onSelect, onLogout }: Props) {
   return (
     <aside className="w-56 shrink-0 border-r border-line bg-panel flex flex-col">
       <div className="p-4 border-b border-line">
@@ -35,6 +36,14 @@ export function Sidebar({ sites, activeSiteId, onSelect }: Props) {
           </button>
         ))}
       </nav>
+      <div className="p-2 border-t border-line">
+        <button
+          onClick={onLogout}
+          className="w-full text-left text-sm px-3 py-2 rounded text-muted hover:text-danger transition-colors"
+        >
+          Se déconnecter
+        </button>
+      </div>
     </aside>
   )
 }

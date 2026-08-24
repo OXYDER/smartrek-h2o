@@ -14,7 +14,7 @@ const STATUS_FILTERS: { value: SensorStatus | 'all'; label: string }[] = [
   { value: 'offline', label: 'Hors ligne' },
 ]
 
-export function Dashboard() {
+export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [sites, setSites] = useState<Site[]>([])
   const [sensors, setSensors] = useState<Sensor[]>([])
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null)
@@ -54,7 +54,7 @@ export function Dashboard() {
 
   return (
     <div className="flex h-screen bg-base text-text">
-      <Sidebar sites={sites} activeSiteId={activeSiteId} onSelect={setActiveSiteId} />
+      <Sidebar sites={sites} activeSiteId={activeSiteId} onSelect={setActiveSiteId} onLogout={onLogout} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="border-b border-line px-6 py-4 flex items-center justify-between">

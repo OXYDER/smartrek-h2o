@@ -3,9 +3,11 @@ import type { NotificationChannel, Sensor, ThresholdRule } from '../types/sensor
 import { CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { BatteryIndicator } from './BatteryIndicator'
+import { DeviceIcon } from './DeviceIcon'
 import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
 import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
+import { getSensorIconKind } from '../lib/sensorType'
 
 interface Props {
   sensor: Sensor
@@ -80,16 +82,19 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-lg h-full bg-panel border-l border-line flex flex-col overflow-y-auto">
         <div className="p-5 border-b border-line flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={saveName}
-              className="font-display font-semibold text-xl text-sap bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-sap rounded px-1 -ml-1"
-            />
-            {sensor.serialNumber && (
-              <p className="text-xs font-mono text-muted mt-0.5">{sensor.serialNumber}</p>
-            )}
+          <div className="flex-1 flex items-start gap-2 min-w-0">
+            <DeviceIcon kind={getSensorIconKind(sensor)} size={26} color="var(--color-sap)" className="mt-1" />
+            <div className="flex-1 min-w-0">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={saveName}
+                className="font-display font-semibold text-xl text-sap bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-sap rounded px-1 -ml-1"
+              />
+              {sensor.serialNumber && (
+                <p className="text-xs font-mono text-muted mt-0.5">{sensor.serialNumber}</p>
+              )}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             <StatusBadge status={status} />

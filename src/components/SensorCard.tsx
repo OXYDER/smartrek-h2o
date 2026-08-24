@@ -1,8 +1,9 @@
 import type { Sensor } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { BatteryIndicator } from './BatteryIndicator'
+import { DeviceIcon } from './DeviceIcon'
 import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
-import { getSensorTypeLabel } from '../lib/sensorType'
+import { getSensorTypeLabel, getSensorIconKind } from '../lib/sensorType'
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('fr-CA', {
@@ -25,7 +26,10 @@ export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => v
       className="group relative text-left rounded-lg border border-line bg-panel hover:bg-panel-raised transition-colors p-4 flex flex-col gap-3"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-display font-semibold text-lg leading-tight text-sap">{sensor.name}</h3>
+        <div className="flex items-center gap-2 min-w-0">
+          <DeviceIcon kind={getSensorIconKind(sensor)} size={20} color="var(--color-sap)" />
+          <h3 className="font-display font-semibold text-lg leading-tight text-sap truncate">{sensor.name}</h3>
+        </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <StatusBadge status={status} />
           <div className="flex items-center gap-2">

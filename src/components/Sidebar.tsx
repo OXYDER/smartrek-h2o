@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import type { Sensor, Site } from '../types/sensor'
 import { SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES, sensorMatchesCategory } from '../lib/sensorCategories'
+import { DeviceIcon, type DeviceIconKind } from './DeviceIcon'
+
+const CATEGORY_ICON: Record<string, DeviceIconKind> = {
+  vacuum: 'vacuum',
+  level: 'level',
+  flow: 'instrument',
+  remote: 'remote',
+  tensiometer: 'instrument',
+}
 
 interface Props {
   sites: Site[]
@@ -20,11 +29,13 @@ function CategoryRow({
   count,
   active,
   onClick,
+  icon,
 }: {
   label: string
   count: number
   active: boolean
   onClick: () => void
+  icon?: DeviceIconKind
 }) {
   return (
     <button
@@ -33,7 +44,10 @@ function CategoryRow({
         active ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
       }`}
     >
-      <span className="truncate">{label}</span>
+      <span className="flex items-center gap-1.5 min-w-0 truncate">
+        {icon && <DeviceIcon kind={icon} size={13} color={active ? 'var(--color-sap)' : 'var(--color-muted)'} />}
+        <span className="truncate">{label}</span>
+      </span>
       <span
         className={`font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border ${
           active ? 'border-sap text-sap' : 'border-line text-muted'
@@ -182,25 +196,27 @@ export function Sidebar({
                     {SENSOR_CATEGORIES.map((cat) => {
                       const count = siteSensors.filter((s) => sensorMatchesCategory(s, cat.id)).length
                       if (cat.id === 'vacuum') {
+                        const vacuumActive = activeSiteId === site.id && activeCategory === 'vacuum'
                         return (
                           <div key={cat.id}>
                             <button
                               onClick={() => setVacuumExpanded((v) => !v)}
                               className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
-                                activeSiteId === site.id && activeCategory === 'vacuum'
-                                  ? 'bg-panel-raised text-sap'
-                                  : 'text-muted hover:text-text'
+                                vacuumActive ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
                               }`}
                             >
-                              <span className="flex items-center gap-1.5 truncate">
-                                <span className="text-[10px]">{vacuumExpanded ? '▾' : '▸'}</span>
-                                {cat.label}
+                              <span className="flex items-center gap-1.5 min-w-0 truncate">
+                                <span className="text-[10px] shrink-0">{vacuumExpanded ? '▾' : '▸'}</span>
+                                <DeviceIcon
+                                  kind="vacuum"
+                                  size={13}
+                                  color={vacuumActive ? 'var(--color-sap)' : 'var(--color-muted)'}
+                                />
+                                <span className="truncate">{cat.label}</span>
                               </span>
                               <span
                                 className={`font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border ${
-                                  activeSiteId === site.id && activeCategory === 'vacuum'
-                                    ? 'border-sap text-sap'
-                                    : 'border-line text-muted'
+                                  vacuumActive ? 'border-sap text-sap' : 'border-line text-muted'
                                 }`}
                               >
                                 {count}
@@ -211,7 +227,7 @@ export function Sidebar({
                                 <CategoryRow
                                   label="Tous les vacuum"
                                   count={count}
-                                  active={activeSiteId === site.id && activeCategory === 'vacuum'}
+                                  active={vacuumActive}
                                   onClick={() => {
                                     onSelectCategory(site.id, 'vacuum')
                                     onClose()
@@ -239,6 +255,7 @@ export function Sidebar({
                           key={cat.id}
                           label={cat.label}
                           count={count}
+                          icon={CATEGORY_ICON[cat.id]}
                           active={activeSiteId === site.id && activeCategory === cat.id}
                           onClick={() => {
                             onSelectCategory(site.id, cat.id)

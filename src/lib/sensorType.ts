@@ -1,5 +1,17 @@
 import type { Sensor } from '../types/sensor'
 import { CHANNEL_KIND_LABELS } from '../types/sensor'
+import type { DeviceIconKind } from '../components/DeviceIcon'
+
+/** Icône représentative du capteur, selon son type réel côté API quand on
+ * l'a (vide/niveau/contrôle à distance/répéteur), sinon un pictogramme
+ * générique d'instrument. */
+export function getSensorIconKind(sensor: Sensor): DeviceIconKind {
+  if (sensor.deviceType === 1) return 'level'
+  if (sensor.deviceType === 2) return 'remote'
+  if (sensor.deviceType === 10) return 'repeater'
+  if (sensor.channels.some((c) => c.kind === 'vacuum')) return 'vacuum'
+  return 'instrument'
+}
 
 /** Nom commercial du modèle. Pour les capteurs de vide, déduit du nombre
  * de ports (fabrication 1/2/3 ports). Pour les autres types découverts

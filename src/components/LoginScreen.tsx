@@ -23,7 +23,7 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-base text-text flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-dvh bg-base text-text flex items-center justify-center p-4 relative overflow-hidden">
       <MapleLeafGlyph
         className="absolute pointer-events-none w-[520px] h-[560px] md:w-[720px] md:h-[760px] -right-24 md:-right-32 top-1/2 -translate-y-1/2"
         opacity={0.9}

@@ -31,9 +31,9 @@ export function MapleLeafGlyph({ className = '', opacity = 1 }: Props) {
         </filter>
 
         <linearGradient id="leafFill" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00d9ff" stopOpacity="0.16" />
-          <stop offset="50%" stopColor="#0077bb" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="#00cfff" stopOpacity="0.15" />
+          <stop offset="0%" stopColor="var(--color-sap)" stopOpacity="0.16" />
+          <stop offset="50%" stopColor="var(--color-panel-raised)" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="var(--color-sap)" stopOpacity="0.15" />
         </linearGradient>
 
         <path
@@ -104,20 +104,20 @@ export function MapleLeafGlyph({ className = '', opacity = 1 }: Props) {
       <rect width="1000" height="1000" fill="var(--color-base)" />
 
       {/* Halo */}
-      <use href="#mapleLeaf" fill="none" stroke="#00cfff" strokeWidth="12" opacity=".35" filter="url(#glow)" />
+      <use href="#mapleLeaf" fill="none" stroke="var(--color-sap)" strokeWidth="12" opacity=".35" filter="url(#glow)" />
 
       {/* Feuille */}
       <use
         href="#mapleLeaf"
         fill="url(#leafFill)"
-        stroke="#69eaff"
+        stroke="var(--color-sap)"
         strokeWidth="3"
         strokeLinejoin="round"
         filter="url(#glow)"
       />
 
       {/* Réseau low-poly */}
-      <g clipPath="url(#leafClip)" fill="none" stroke="#5de4ff" strokeWidth="1.2" strokeOpacity=".65">
+      <g clipPath="url(#leafClip)" fill="none" stroke="var(--color-sap)" strokeWidth="1.2" strokeOpacity=".65">
         <path d="M500 65 L500 700" />
 
         <path d="M500 65 L441 205" />
@@ -207,7 +207,7 @@ export function MapleLeafGlyph({ className = '', opacity = 1 }: Props) {
       </g>
 
       {/* Nœuds lumineux */}
-      <g fill="#d8fbff" filter="url(#glow)">
+      <g fill="var(--color-text)" filter="url(#glow)">
         <circle cx="500" cy="65" r="3" />
         <circle cx="441" cy="205" r="2.5" />
         <circle cx="559" cy="205" r="2.5" />
@@ -230,7 +230,7 @@ export function MapleLeafGlyph({ className = '', opacity = 1 }: Props) {
       </g>
 
       {/* Petites particules */}
-      <g fill="#00dfff" filter="url(#glow)">
+      <g fill="var(--color-sap)" filter="url(#glow)">
         <circle cx="330" cy="120" r="1.5" />
         <circle cx="385" cy="95" r="1" />
         <circle cx="430" cy="115" r="1.5" />

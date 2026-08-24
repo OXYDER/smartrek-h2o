@@ -25,6 +25,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [loading, setLoading] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   async function loadData() {
     const [s, se] = await Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()])
@@ -73,55 +74,70 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const alarmCount = sensors.filter((s) => getSensorStatus(s) === 'alarm').length
 
   return (
-    <div className="flex h-screen bg-base text-text">
+    <div className="flex h-dvh bg-base text-text">
       <Sidebar
         sites={sites}
         activeSiteId={activeSiteId}
         onSelect={setActiveSiteId}
         onRenameSite={renameSite}
         onLogout={onLogout}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="border-b border-line px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl">
-              {activeSiteId ? sites.find((s) => s.id === activeSiteId)?.name : 'Tous les capteurs'}
-            </h1>
-            <p className="text-sm text-muted font-mono">
-              {filtered.length} capteur{filtered.length !== 1 ? 's' : ''}
-              {alarmCount > 0 && <span className="text-danger"> · {alarmCount} en alarme</span>}
-            </p>
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header className="border-b border-line px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden shrink-0 p-1.5 -ml-1 text-muted hover:text-text text-xl leading-none"
+              aria-label="Ouvrir le menu des sites"
+            >
+              ☰
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-display text-lg sm:text-2xl truncate">
+                {activeSiteId ? sites.find((s) => s.id === activeSiteId)?.name : 'Tous les capteurs'}
+              </h1>
+              <p className="text-xs sm:text-sm text-muted font-mono truncate">
+                {filtered.length} capteur{filtered.length !== 1 ? 's' : ''}
+                {alarmCount > 0 && <span className="text-danger"> · {alarmCount} en alarme</span>}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="text-sm border border-line text-muted hover:text-text px-3 py-2 rounded transition-colors disabled:opacity-40"
+              className="text-sm border border-line text-muted hover:text-text px-2.5 sm:px-3 py-2 rounded transition-colors disabled:opacity-40"
+              aria-label="Actualiser"
             >
-              {refreshing ? 'Actualisation…' : '↻ Actualiser'}
+              <span className="sm:hidden">↻</span>
+              <span className="hidden sm:inline">{refreshing ? 'Actualisation…' : '↻ Actualiser'}</span>
             </button>
             <button
               onClick={() => setShowNewModal(true)}
-              className="bg-sap text-base text-sm font-medium px-4 py-2 rounded hover:opacity-90 transition-opacity"
+              className="bg-sap text-base text-sm font-medium px-2.5 sm:px-4 py-2 rounded hover:opacity-90 transition-opacity"
+              aria-label="Nouveau capteur"
             >
-              + Nouveau capteur
+              <span className="sm:hidden">+</span>
+              <span className="hidden sm:inline">+ Nouveau capteur</span>
             </button>
           </div>
         </header>
 
         {bootError && (
-          <div className="px-6 py-3 bg-danger/10 border-b border-danger/30 text-sm text-danger">
+          <div className="px-3 sm:px-6 py-3 bg-danger/10 border-b border-danger/30 text-sm text-danger">
             <strong>Échec de chargement des données Smartrek :</strong> {bootError}
           </div>
         )}
 
-        <div className="px-6 py-3 border-b border-line flex gap-1">
+        <div className="px-3 sm:px-6 py-3 border-b border-line flex gap-1 overflow-x-auto">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
-              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+              className={`shrink-0 text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
                 statusFilter === f.value
                   ? 'border-sap text-sap bg-sap/10'
                   : 'border-line text-muted hover:text-text'
@@ -132,7 +148,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-canvas">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
           {loading ? (
             <p className="text-muted font-mono text-sm">Chargement…</p>
           ) : filtered.length === 0 ? (
@@ -141,7 +157,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               <p className="text-sm text-muted mt-1">Ajuste les filtres ou ajoute un nouveau capteur.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filtered.map((sensor) => (
                 <SensorCard key={sensor.id} sensor={sensor} onOpen={() => setOpenSensorId(sensor.id)} />
               ))}

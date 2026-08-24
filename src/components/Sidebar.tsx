@@ -1,19 +1,65 @@
 import { useState } from 'react'
-import type { Site } from '../types/sensor'
+import type { Sensor, Site } from '../types/sensor'
+import { SENSOR_CATEGORIES, sensorMatchesCategory } from '../lib/sensorCategories'
 
 interface Props {
   sites: Site[]
+  sensors: Sensor[]
   activeSiteId: string | null
-  onSelect: (siteId: string | null) => void
+  activeCategory: string | null
+  onSelectAll: () => void
+  onSelectCategory: (siteId: string, categoryId: string | null) => void
   onRenameSite: (id: string, name: string) => void
   onLogout: () => void
   open: boolean
   onClose: () => void
 }
 
-export function Sidebar({ sites, activeSiteId, onSelect, onRenameSite, onLogout, open, onClose }: Props) {
+function CategoryRow({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string
+  count: number
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
+        active ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+      }`}
+    >
+      <span className="truncate">{label}</span>
+      <span
+        className={`font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border ${
+          active ? 'border-sap text-sap' : 'border-line text-muted'
+        }`}
+      >
+        {count}
+      </span>
+    </button>
+  )
+}
+
+export function Sidebar({
+  sites,
+  sensors,
+  activeSiteId,
+  activeCategory,
+  onSelectAll,
+  onSelectCategory,
+  onRenameSite,
+  onLogout,
+  open,
+  onClose,
+}: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
+  const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null)
 
   function startEditing(site: Site, e: React.MouseEvent) {
     e.stopPropagation()
@@ -28,11 +74,17 @@ export function Sidebar({ sites, activeSiteId, onSelect, onRenameSite, onLogout,
     setEditingId(null)
   }
 
+  function toggleSite(site: Site) {
+    const willExpand = expandedSiteId !== site.id
+    setExpandedSiteId(willExpand ? site.id : null)
+    if (willExpand) {
+      onSelectCategory(site.id, null)
+    }
+  }
+
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={onClose} aria-hidden="true" />
-      )}
+      {open && <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={onClose} aria-hidden="true" />}
       <aside
         className={`fixed md:static inset-y-0 left-0 z-40 w-64 md:w-56 shrink-0 border-r border-line bg-panel flex flex-col transition-transform duration-200 ease-out ${
           open ? 'translate-x-0' : '-translate-x-full'
@@ -56,7 +108,8 @@ export function Sidebar({ sites, activeSiteId, onSelect, onRenameSite, onLogout,
         <nav className="flex-1 p-2 flex flex-col gap-0.5 overflow-y-auto">
           <button
             onClick={() => {
-              onSelect(null)
+              setExpandedSiteId(null)
+              onSelectAll()
               onClose()
             }}
             className={`text-left text-sm px-3 py-2 rounded transition-colors ${
@@ -65,51 +118,82 @@ export function Sidebar({ sites, activeSiteId, onSelect, onRenameSite, onLogout,
           >
             Tous les sites
           </button>
-          {sites.map((site, i) => (
-            <div
-              key={site.id}
-              onClick={() => {
-                if (editingId === site.id) return
-                onSelect(site.id)
-                onClose()
-              }}
-              className={`group text-left px-3 py-2 rounded transition-colors cursor-pointer ${
-                activeSiteId === site.id
-                  ? 'bg-panel-raised text-sap'
-                  : `text-muted hover:text-text ${i % 2 === 0 ? 'bg-transparent' : 'bg-panel-raised/40'}`
-              }`}
-            >
-              {editingId === site.id ? (
-                <input
-                  autoFocus
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onBlur={commitEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitEdit()
-                    if (e.key === 'Escape') setEditingId(null)
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-base border border-sap rounded px-1.5 py-0.5 text-sm text-text outline-none"
-                />
-              ) : (
-                <div className="flex items-center justify-between gap-1">
-                  <div className="min-w-0">
-                    <div className="text-sm truncate">{site.name}</div>
-                    <div className="text-xs font-mono opacity-70">Passerelle · {site.location}</div>
-                  </div>
-                  <button
-                    onClick={(e) => startEditing(site, e)}
-                    className="opacity-0 group-hover:opacity-100 text-xs shrink-0 hover:text-sap transition-opacity"
-                    aria-label={`Renommer ${site.name}`}
-                    title="Renommer"
-                  >
-                    ✎
-                  </button>
+          {sites.map((site, i) => {
+            const siteSensors = sensors.filter((s) => s.siteId === site.id)
+            const isExpanded = expandedSiteId === site.id
+            return (
+              <div key={site.id}>
+                <div
+                  onClick={() => editingId !== site.id && toggleSite(site)}
+                  className={`group text-left px-3 py-2 rounded transition-colors cursor-pointer ${
+                    activeSiteId === site.id
+                      ? 'bg-panel-raised text-sap'
+                      : `text-muted hover:text-text ${i % 2 === 0 ? 'bg-transparent' : 'bg-panel-raised/40'}`
+                  }`}
+                >
+                  {editingId === site.id ? (
+                    <input
+                      autoFocus
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitEdit()
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full bg-base border border-sap rounded px-1.5 py-0.5 text-sm text-text outline-none"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="min-w-0 flex items-center gap-1.5">
+                        <span className="text-xs text-muted shrink-0">{isExpanded ? '▾' : '▸'}</span>
+                        <div className="min-w-0">
+                          <div className="text-sm truncate">{site.name}</div>
+                          <div className="text-xs font-mono opacity-70">Passerelle · {site.location}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => startEditing(site, e)}
+                        className="opacity-0 group-hover:opacity-100 text-xs shrink-0 hover:text-sap transition-opacity"
+                        aria-label={`Renommer ${site.name}`}
+                        title="Renommer"
+                      >
+                        ✎
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {isExpanded && (
+                  <div className="pl-2 flex flex-col gap-0.5 py-1">
+                    <p className="px-3 py-1 text-[10px] font-mono uppercase tracking-wide text-muted">Capteurs</p>
+                    <CategoryRow
+                      label="Tous les capteurs"
+                      count={siteSensors.length}
+                      active={activeSiteId === site.id && activeCategory === null}
+                      onClick={() => {
+                        onSelectCategory(site.id, null)
+                        onClose()
+                      }}
+                    />
+                    {SENSOR_CATEGORIES.map((cat) => (
+                      <CategoryRow
+                        key={cat.id}
+                        label={cat.label}
+                        count={siteSensors.filter((s) => sensorMatchesCategory(s, cat.id)).length}
+                        active={activeSiteId === site.id && activeCategory === cat.id}
+                        onClick={() => {
+                          onSelectCategory(site.id, cat.id)
+                          onClose()
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </nav>
         <div className="p-2 border-t border-line">
           <button

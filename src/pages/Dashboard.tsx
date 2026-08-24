@@ -6,6 +6,7 @@ import { SensorCard } from '../components/SensorCard'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { getSensorStatus } from '../lib/sensorStatus'
+import { sensorMatchesCategory, SENSOR_CATEGORIES } from '../lib/sensorCategories'
 
 const STATUS_FILTERS: { value: SensorStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Tous' },
@@ -19,6 +20,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [sites, setSites] = useState<Site[]>([])
   const [sensors, setSensors] = useState<Sensor[]>([])
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SensorStatus | 'all'>('all')
   const [openSensorId, setOpenSensorId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
@@ -48,10 +50,11 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const filtered = useMemo(() => {
     return sensors.filter((s) => {
       if (activeSiteId && s.siteId !== activeSiteId) return false
+      if (activeCategory && !sensorMatchesCategory(s, activeCategory)) return false
       if (statusFilter !== 'all' && getSensorStatus(s) !== statusFilter) return false
       return true
     })
-  }, [sensors, activeSiteId, statusFilter])
+  }, [sensors, activeSiteId, activeCategory, statusFilter])
 
   const openSensor = sensors.find((s) => s.id === openSensorId) ?? null
 
@@ -77,8 +80,17 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     <div className="flex h-dvh bg-base text-text">
       <Sidebar
         sites={sites}
+        sensors={sensors}
         activeSiteId={activeSiteId}
-        onSelect={setActiveSiteId}
+        activeCategory={activeCategory}
+        onSelectAll={() => {
+          setActiveSiteId(null)
+          setActiveCategory(null)
+        }}
+        onSelectCategory={(siteId, categoryId) => {
+          setActiveSiteId(siteId)
+          setActiveCategory(categoryId)
+        }}
         onRenameSite={renameSite}
         onLogout={onLogout}
         open={sidebarOpen}
@@ -98,6 +110,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             <div className="min-w-0">
               <h1 className="font-display text-lg sm:text-2xl truncate">
                 {activeSiteId ? sites.find((s) => s.id === activeSiteId)?.name : 'Tous les capteurs'}
+                {activeCategory && (
+                  <span className="text-muted"> — {SENSOR_CATEGORIES.find((c) => c.id === activeCategory)?.label}</span>
+                )}
               </h1>
               <p className="text-xs sm:text-sm text-muted font-mono truncate">
                 {filtered.length} capteur{filtered.length !== 1 ? 's' : ''}

@@ -5,6 +5,7 @@ export type ChannelKind =
   | 'level'
   | 'humidity'
   | 'vacuum'
+  | 'tensiometer'
 
 export type SensorStatus = 'online' | 'offline' | 'warning' | 'alarm'
 
@@ -67,6 +68,7 @@ export const CHANNEL_KIND_LABELS: Record<ChannelKind, string> = {
   level: 'Niveau',
   humidity: 'Humidité',
   vacuum: 'Vide',
+  tensiometer: 'Tension',
 }
 
 export const CHANNEL_KIND_UNITS: Record<ChannelKind, string> = {
@@ -76,6 +78,7 @@ export const CHANNEL_KIND_UNITS: Record<ChannelKind, string> = {
   level: '%',
   humidity: '%',
   vacuum: 'inHg',
+  tensiometer: 'cBar',
 }
 
 export const CHANNEL_KIND_ABBR: Record<ChannelKind, string> = {
@@ -85,4 +88,5 @@ export const CHANNEL_KIND_ABBR: Record<ChannelKind, string> = {
   level: 'N',
   humidity: 'H',
   vacuum: 'V',
+  tensiometer: 'Tn',
 }

@@ -4,117 +4,254 @@ interface Props {
 }
 
 /**
- * Feuille d'érable stylisée en facettes filaires, avec nœuds lumineux —
- * écho du visuel de marque H2O Innovation. Les "veines" partent de la
- * base (où la tige rejoint le limbe), comme une vraie feuille, plutôt
- * que du centre géométrique — ça évite l'effet "étoile/soleil".
+ * Feuille d'érable géométrique low-poly avec halo lumineux — fournie
+ * directement par le client (design final approuvé), intégrée telle
+ * quelle. Le rectangle de fond utilise var(--color-base) au lieu d'une
+ * couleur fixe pour se fondre exactement avec le fond de la page.
+ *
+ * Note : les id (glow, leafFill, mapleLeaf, leafClip) doivent rester
+ * uniques dans le DOM — si ce glyphe est utilisé à plus d'un endroit sur
+ * la même page en même temps, il faudra suffixer ces id dynamiquement.
  */
 export function MapleLeafGlyph({ className = '', opacity = 1 }: Props) {
-  // Silhouette : pointe haute + 3 lobes de chaque côté + tige, avec des
-  // échancrures concaves entre chaque lobe (ce qui fait la différence
-  // entre une feuille et une étoile symétrique).
-  const outline: [number, number][] = [
-    [200, 20], // 0  pointe sommet (lobe)
-    [232, 65], // 1  échancrure
-    [305, 45], // 2  lobe sup. droit
-    [272, 115], // 3  échancrure
-    [378, 145], // 4  lobe médian droit
-    [288, 185], // 5  échancrure
-    [350, 245], // 6  lobe inf. droit
-    [260, 245], // 7  échancrure
-    [280, 325], // 8  base droite
-    [218, 315], // 9  tige (épaule droite)
-    [200, 400], // 10 pointe de la tige
-    [182, 315], // 11 tige (épaule gauche)
-    [120, 325], // 12 base gauche
-    [140, 245], // 13 échancrure
-    [50, 245], // 14 lobe inf. gauche
-    [112, 185], // 15 échancrure
-    [22, 145], // 16 lobe médian gauche
-    [128, 115], // 17 échancrure
-    [95, 45], // 18 lobe sup. gauche
-    [168, 65], // 19 échancrure
-  ]
-  const spikeIndices = [0, 2, 4, 6, 14, 16, 18] // les 7 pointes du limbe (pas les échancrures ni la tige)
-  const base: [number, number] = [200, 300] // origine des veines, près de l'attache de la tige
-
-  const outlinePath = `M${outline.map((p) => p.join(',')).join(' L')} Z`
-
   return (
     <svg
-      viewBox="0 0 400 420"
+      viewBox="0 0 1000 1000"
       className={className}
       style={{ opacity }}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <filter id="leaf-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="8" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+
+        <linearGradient id="leafFill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#00d9ff" stopOpacity="0.16" />
+          <stop offset="50%" stopColor="#0077bb" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#00cfff" stopOpacity="0.15" />
+        </linearGradient>
+
+        <path
+          id="mapleLeaf"
+          d="
+            M500 65
+
+            L441 205
+            Q436 218 423 210
+            L360 168
+
+            L397 360
+            Q402 382 384 391
+            Q373 396 362 385
+
+            L302 326
+            L297 370
+            Q295 385 280 380
+            L155 343
+
+            L197 462
+            Q202 477 186 481
+            L140 492
+
+            L329 636
+            Q340 644 334 657
+
+            L304 726
+            L461 697
+            Q478 694 478 711
+
+            L474 885
+            L526 885
+            L522 711
+
+            Q522 694 539 697
+            L696 726
+            L666 657
+            Q660 644 671 636
+
+            L860 492
+            L814 481
+            Q798 477 803 462
+            L845 343
+
+            L720 380
+            Q705 385 703 370
+            L698 326
+
+            L638 385
+            Q627 396 616 391
+            Q598 382 603 360
+
+            L640 168
+            L577 210
+            Q564 218 559 205
+
+            Z
+          "
+        />
+
+        <clipPath id="leafClip">
+          <use href="#mapleLeaf" />
+        </clipPath>
       </defs>
 
-      <path
-        d={outlinePath}
-        fill="none"
-        stroke="var(--color-sap)"
-        strokeWidth="1.5"
-        opacity="0.75"
-        filter="url(#leaf-glow)"
+      {/* Fond — se fond avec l'arrière-plan de la page */}
+      <rect width="1000" height="1000" fill="var(--color-base)" />
+
+      {/* Halo */}
+      <use href="#mapleLeaf" fill="none" stroke="#00cfff" strokeWidth="12" opacity=".35" filter="url(#glow)" />
+
+      {/* Feuille */}
+      <use
+        href="#mapleLeaf"
+        fill="url(#leafFill)"
+        stroke="#69eaff"
+        strokeWidth="3"
+        strokeLinejoin="round"
+        filter="url(#glow)"
       />
 
-      {/* Veines : de la base vers chaque pointe du limbe, comme une vraie feuille */}
-      {spikeIndices.map((i) => (
-        <line
-          key={i}
-          x1={base[0]}
-          y1={base[1]}
-          x2={outline[i][0]}
-          y2={outline[i][1]}
-          stroke="var(--color-sap)"
-          strokeWidth="0.5"
-          opacity="0.3"
-        />
-      ))}
+      {/* Réseau low-poly */}
+      <g clipPath="url(#leafClip)" fill="none" stroke="#5de4ff" strokeWidth="1.2" strokeOpacity=".65">
+        <path d="M500 65 L500 700" />
 
-      {/* Nervures secondaires : quelques liens courts entre pointes voisines pour la texture facettée */}
-      {spikeIndices.map((i, idx) => {
-        if (idx === spikeIndices.length - 1) return null
-        const next = spikeIndices[idx + 1]
-        return (
-          <line
-            key={`s-${i}`}
-            x1={outline[i][0]}
-            y1={outline[i][1]}
-            x2={outline[next][0]}
-            y2={outline[next][1]}
-            stroke="var(--color-sap)"
-            strokeWidth="0.4"
-            opacity="0.18"
-          />
-        )
-      })}
+        <path d="M500 65 L441 205" />
+        <path d="M500 65 L559 205" />
 
-      {outline.map(([x, y], i) => {
-        const isSpike = spikeIndices.includes(i)
-        return (
-          <circle
-            key={i}
-            cx={x}
-            cy={y}
-            r={isSpike ? 2.4 : 1.2}
-            fill="var(--color-sap)"
-            filter="url(#leaf-glow)"
-            className={isSpike ? 'node-pulse' : ''}
-            style={{ animationDelay: `${(i * 173) % 2400}ms` }}
-          />
-        )
-      })}
+        <path d="M441 205 L500 245" />
+        <path d="M559 205 L500 245" />
 
-      <circle cx={base[0]} cy={base[1]} r="2" fill="var(--color-syrup)" filter="url(#leaf-glow)" />
+        <path d="M360 168 L441 205" />
+        <path d="M640 168 L559 205" />
+
+        <path d="M360 168 L397 360" />
+        <path d="M640 168 L603 360" />
+
+        <path d="M441 205 L397 360" />
+        <path d="M559 205 L603 360" />
+
+        <path d="M397 360 L500 300" />
+        <path d="M603 360 L500 300" />
+
+        <path d="M302 326 L397 360" />
+        <path d="M155 343 L302 326" />
+        <path d="M155 343 L197 462" />
+        <path d="M197 462 L302 420" />
+        <path d="M302 326 L302 420" />
+        <path d="M302 420 L397 360" />
+
+        <path d="M140 492 L197 462" />
+        <path d="M140 492 L329 636" />
+        <path d="M197 462 L370 500" />
+        <path d="M302 420 L370 500" />
+        <path d="M397 360 L370 500" />
+
+        <path d="M698 326 L603 360" />
+        <path d="M845 343 L698 326" />
+        <path d="M845 343 L803 462" />
+        <path d="M803 462 L698 420" />
+        <path d="M698 326 L698 420" />
+        <path d="M698 420 L603 360" />
+
+        <path d="M860 492 L803 462" />
+        <path d="M860 492 L671 636" />
+        <path d="M803 462 L630 500" />
+        <path d="M698 420 L630 500" />
+        <path d="M603 360 L630 500" />
+
+        <path d="M397 360 L500 420" />
+        <path d="M603 360 L500 420" />
+
+        <path d="M370 500 L500 420" />
+        <path d="M630 500 L500 420" />
+
+        <path d="M370 500 L500 550" />
+        <path d="M630 500 L500 550" />
+
+        <path d="M329 636 L370 500" />
+        <path d="M671 636 L630 500" />
+
+        <path d="M329 636 L500 550" />
+        <path d="M671 636 L500 550" />
+
+        <path d="M329 636 L461 697" />
+        <path d="M671 636 L539 697" />
+
+        <path d="M304 726 L461 697" />
+        <path d="M696 726 L539 697" />
+
+        <path d="M461 697 L500 620" />
+        <path d="M539 697 L500 620" />
+
+        <path d="M329 636 L500 620" />
+        <path d="M671 636 L500 620" />
+
+        <path d="M478 711 L500 620" />
+        <path d="M522 711 L500 620" />
+        <path d="M474 885 L500 711" />
+        <path d="M526 885 L500 711" />
+
+        <path d="M360 168 L500 420" />
+        <path d="M640 168 L500 420" />
+
+        <path d="M155 343 L500 550" />
+        <path d="M845 343 L500 550" />
+
+        <path d="M140 492 L500 620" />
+        <path d="M860 492 L500 620" />
+      </g>
+
+      {/* Nœuds lumineux */}
+      <g fill="#d8fbff" filter="url(#glow)">
+        <circle cx="500" cy="65" r="3" />
+        <circle cx="441" cy="205" r="2.5" />
+        <circle cx="559" cy="205" r="2.5" />
+
+        <circle cx="397" cy="360" r="3" />
+        <circle cx="603" cy="360" r="3" />
+
+        <circle cx="302" cy="420" r="2.5" />
+        <circle cx="698" cy="420" r="2.5" />
+
+        <circle cx="370" cy="500" r="3" />
+        <circle cx="630" cy="500" r="3" />
+
+        <circle cx="500" cy="420" r="3.5" />
+        <circle cx="500" cy="550" r="3.5" />
+        <circle cx="500" cy="620" r="3.5" />
+
+        <circle cx="329" cy="636" r="2.5" />
+        <circle cx="671" cy="636" r="2.5" />
+      </g>
+
+      {/* Petites particules */}
+      <g fill="#00dfff" filter="url(#glow)">
+        <circle cx="330" cy="120" r="1.5" />
+        <circle cx="385" cy="95" r="1" />
+        <circle cx="430" cy="115" r="1.5" />
+
+        <circle cx="570" cy="105" r="1" />
+        <circle cx="625" cy="125" r="1.5" />
+        <circle cx="680" cy="100" r="1" />
+
+        <circle cx="110" cy="370" r="1.5" />
+        <circle cx="120" cy="430" r="1" />
+        <circle cx="165" cy="550" r="1.5" />
+
+        <circle cx="890" cy="370" r="1.5" />
+        <circle cx="880" cy="430" r="1" />
+        <circle cx="835" cy="550" r="1.5" />
+
+        <circle cx="270" cy="680" r="1" />
+        <circle cx="350" cy="745" r="1.5" />
+        <circle cx="650" cy="745" r="1.5" />
+        <circle cx="730" cy="680" r="1" />
+      </g>
     </svg>
   )
 }

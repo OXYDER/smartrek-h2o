@@ -1,18 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-base: #12140f;
-  --color-panel: #1a1d15;
-  --color-panel-raised: #21251b;
-  --color-line: #2c3123;
-  --color-text: #edeae0;
-  --color-muted: #8a9082;
-  --color-sap: #5fb8a0;
-  --color-syrup: #c9812e;
-  --color-danger: #d6524a;
+  --color-base: #0a0d13;
+  --color-panel: #121722;
+  --color-panel-raised: #1a212d;
+  --color-line: #242c3a;
+  --color-text: #e7e4da;
+  --color-muted: #78818f;
+  --color-sap: #29abe2;
+  --color-syrup: #e8552e;
+  --color-danger: #e1453d;
 
-  --font-display: 'Fraunces', serif;
+  --font-display: 'Quicksand', sans-serif;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
@@ -21,9 +21,20 @@ body {
   background-color: var(--color-base);
   color: var(--color-text);
   font-family: var(--font-sans);
+  background-image:
+    radial-gradient(1px 1px at 8% 15%, rgba(41, 171, 226, 0.55), transparent),
+    radial-gradient(1px 1px at 22% 65%, rgba(41, 171, 226, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 38% 30%, rgba(41, 171, 226, 0.5), transparent),
+    radial-gradient(1px 1px at 55% 80%, rgba(41, 171, 226, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 68% 20%, rgba(41, 171, 226, 0.5), transparent),
+    radial-gradient(1px 1px at 82% 55%, rgba(41, 171, 226, 0.4), transparent),
+    radial-gradient(1px 1px at 92% 12%, rgba(41, 171, 226, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 12% 88%, rgba(41, 171, 226, 0.4), transparent);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
-/* Signature — filet de sève animé */
+/* Signature — filet de sève / lien réseau animé */
 @keyframes sap-flow {
   0% { stroke-dashoffset: 24; }
   100% { stroke-dashoffset: 0; }
@@ -33,11 +44,19 @@ body {
   animation: sap-flow 1.2s linear infinite;
 }
 
+@keyframes node-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.node-pulse {
+  animation: node-pulse 2.4s ease-in-out infinite;
+}
+
 ::selection {
   background-color: var(--color-sap);
   color: var(--color-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sap-line { animation: none; }
+  .sap-line, .node-pulse { animation: none; }
 }

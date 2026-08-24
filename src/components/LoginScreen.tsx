@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { login } from '../api/auth'
+import { MapleLeafGlyph } from './MapleLeafGlyph'
 
 export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   const [email, setEmail] = useState('')
@@ -22,14 +23,20 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-base text-text flex items-center justify-center p-4">
+    <div className="min-h-screen bg-base text-text flex items-center justify-center p-4 relative overflow-hidden">
+      <MapleLeafGlyph
+        className="absolute pointer-events-none w-[520px] h-[560px] md:w-[720px] md:h-[760px] -right-24 md:-right-32 top-1/2 -translate-y-1/2"
+        opacity={0.9}
+      />
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-panel border border-line rounded-lg p-6 flex flex-col gap-4"
+        className="relative w-full max-w-sm bg-panel/90 backdrop-blur-sm border border-line rounded-lg p-6 flex flex-col gap-4"
       >
         <div>
-          <h1 className="font-display text-2xl">Smartrek</h1>
-          <p className="text-sm text-muted font-mono">Connexion à ton compte</p>
+          <h1 className="font-display font-semibold text-2xl tracking-tight">
+            h<span className="text-sap">2</span>o <span className="text-muted font-normal">smartrek</span>
+          </h1>
+          <p className="text-sm text-muted font-mono">Division Érablière · Connexion</p>
         </div>
 
         <label className="flex flex-col gap-1 text-sm">

@@ -11,8 +11,10 @@ export function Sidebar({ sites, activeSiteId, onSelect, onLogout }: Props) {
   return (
     <aside className="w-56 shrink-0 border-r border-line bg-panel flex flex-col">
       <div className="p-4 border-b border-line">
-        <p className="font-display text-lg leading-tight">Smartrek</p>
-        <p className="text-xs font-mono text-muted">Gestion capteurs</p>
+        <p className="font-display font-semibold text-lg leading-tight tracking-tight">
+          h<span className="text-sap">2</span>o <span className="text-muted font-normal text-base">smartrek</span>
+        </p>
+        <p className="text-xs font-mono text-muted">Division Érablière</p>
       </div>
       <nav className="flex-1 p-2 flex flex-col gap-0.5">
         <button

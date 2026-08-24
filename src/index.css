@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-base: #12140f;
+  --color-panel: #1a1d15;
+  --color-panel-raised: #21251b;
+  --color-line: #2c3123;
+  --color-text: #edeae0;
+  --color-muted: #8a9082;
+  --color-sap: #5fb8a0;
+  --color-syrup: #c9812e;
+  --color-danger: #d6524a;
+
+  --font-display: 'Fraunces', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* Signature — filet de sève animé */
+@keyframes sap-flow {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+.sap-line {
+  stroke-dasharray: 4 4;
+  animation: sap-flow 1.2s linear infinite;
+}
+
+::selection {
+  background-color: var(--color-sap);
+  color: var(--color-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sap-line { animation: none; }
+}

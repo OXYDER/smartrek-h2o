@@ -87,16 +87,30 @@ L'app se connecte à Smartrek H2O via un écran de login au runtime (tes
 identifiants sont saisis dans le navigateur, jamais compilés dans le code ni
 committés) — le build Docker n'a donc besoin d'aucun secret.
 
-### 1. Stack Portainer (build depuis le repo Git)
+### Build automatique via GitHub Actions
 
-Dans Portainer → **Stacks → Add stack → Repository** :
-- Repository URL : `https://github.com/OXYDER/smartrek-h2o`
-- Reference : `refs/heads/main`
-- Compose path : `docker-compose.yml`
-- Aucune variable d'environnement requise.
-- **GitOps updates** : active le polling automatique (ex. toutes les 5 min)
-  ou configure un webhook GitHub → Portainer pour un redéploiement immédiat
-  à chaque push.
+À chaque push sur `main`, `.github/workflows/docker-build.yml` build l'image
+et la publie sur GitHub Container Registry (GHCR) :
+`ghcr.io/oxyder/smartrek-h2o:latest`. Le NAS n'a donc plus besoin de builder
+lui-même — Portainer se contente de **puller** l'image déjà prête.
+
+**Étape unique à faire une fois** : après le premier run du workflow (visible
+dans l'onglet **Actions** du repo GitHub), va dans **github.com/OXYDER →
+Packages → smartrek-h2o → Package settings** et passe la visibilité à
+**Public**. Comme ça, Portainer peut puller l'image sans jamais avoir besoin
+d'identifiants — aucun token à saisir, ni maintenant ni plus tard.
+
+### 1. Stack Portainer
+
+Dans Portainer → **Stacks → Add stack** :
+- Build method : **Web editor** (plus besoin de lier le repo Git — l'image
+  est déjà construite ailleurs)
+- Colle le contenu de `docker-compose.yml`
+- **Deploy the stack**
+
+Pour mettre à jour après un nouveau push : dans le détail du stack →
+**Pull and redeploy** — ça va chercher la dernière image `latest` sur GHCR et
+redémarrer le conteneur. Prend quelques secondes, pas de build sur le NAS.
 
 Le conteneur écoute sur le port hôte `8091` (ajustable dans
 `docker-compose.yml` si déjà pris sur ton NAS).
@@ -118,7 +132,7 @@ pour resotik.ca) vers l'IP publique de ton NAS / ton tunnel existant.
 
 ### Boucle de dev : tester après chaque push
 
-Une fois le webhook Portainer configuré, le flux devient : je push sur
-`main` → Portainer détecte le changement → rebuild + redeploy automatique
-→ `h2o.resotik.ca` reflète le dernier commit en quelques minutes, sans rien
-faire de ton côté.
+Je push sur `main` → GitHub Actions build + publie l'image sur GHCR
+(1-2 minutes) → tu cliques **Pull and redeploy** dans Portainer (ou on
+configure le polling GitOps de Portainer sur le registre pour que ce soit
+automatique aussi) → `h2o.resotik.ca` reflète le dernier commit.

@@ -1,8 +1,6 @@
 services:
   smartrek-h2o:
-    build:
-      context: .
-    image: smartrek-h2o:latest
+    image: ghcr.io/oxyder/smartrek-h2o:latest
     container_name: smartrek-h2o
     restart: unless-stopped
     ports:

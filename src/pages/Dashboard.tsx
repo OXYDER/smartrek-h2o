@@ -5,6 +5,7 @@ import { Sidebar } from '../components/Sidebar'
 import { SensorCard } from '../components/SensorCard'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
+import { getSensorStatus } from '../lib/sensorStatus'
 
 const STATUS_FILTERS: { value: SensorStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Tous' },
@@ -46,7 +47,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const filtered = useMemo(() => {
     return sensors.filter((s) => {
       if (activeSiteId && s.siteId !== activeSiteId) return false
-      if (statusFilter !== 'all' && s.status !== statusFilter) return false
+      if (statusFilter !== 'all' && getSensorStatus(s) !== statusFilter) return false
       return true
     })
   }, [sensors, activeSiteId, statusFilter])
@@ -69,7 +70,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     setOpenSensorId(null)
   }
 
-  const alarmCount = sensors.filter((s) => s.status === 'alarm').length
+  const alarmCount = sensors.filter((s) => getSensorStatus(s) === 'alarm').length
 
   return (
     <div className="flex h-screen bg-base text-text">

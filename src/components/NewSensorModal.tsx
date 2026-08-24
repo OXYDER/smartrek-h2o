@@ -25,7 +25,7 @@ export function NewSensorModal({ siteId, onClose, onCreated }: Props) {
     const channels = isVacuum
       ? [
           ...Array.from({ length: portCount }, (_, i) => ({
-            label: portCount === 1 ? 'Vide' : `Vide ${i + 1}`,
+            label: `Port ${i + 1}`,
             kind: 'vacuum' as ChannelKind,
             unit: CHANNEL_KIND_UNITS.vacuum,
           })),

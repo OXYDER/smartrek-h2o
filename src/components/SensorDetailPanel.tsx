@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import type { NotificationChannel, Sensor, ThresholdRule, ChannelKind } from '../types/sensor'
-import { CHANNEL_KIND_LABELS, CHANNEL_KIND_UNITS, CHANNEL_KIND_ABBR } from '../types/sensor'
+import type { NotificationChannel, Sensor, ThresholdRule } from '../types/sensor'
+import { CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
+import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
 
 interface Props {
   sensor: Sensor
@@ -16,22 +17,13 @@ function uid() {
   return Math.random().toString(36).slice(2, 9)
 }
 
-function isChannelAlarming(channel: Sensor['channels'][number]) {
-  return channel.thresholds.some(
-    (t) =>
-      t.enabled &&
-      ((t.max !== undefined && channel.currentValue >= t.max) ||
-        (t.min !== undefined && channel.currentValue <= t.min))
-  )
-}
-
 export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props) {
   const [name, setName] = useState(sensor.name)
   const [notes, setNotes] = useState(sensor.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [addingChannel, setAddingChannel] = useState(false)
-  const [newChannelLabel, setNewChannelLabel] = useState('')
-  const [newChannelKind, setNewChannelKind] = useState<ChannelKind>('temperature')
+
+  const status = getSensorStatus(sensor)
+  const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
 
   async function saveName() {
     if (name === sensor.name) return
@@ -61,28 +53,6 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
     if (updated) onChange(updated)
   }
 
-  async function renameChannel(channelId: string, label: string) {
-    const updated = await smartrekClient.updateChannel(sensor.id, channelId, { label })
-    if (updated) onChange(updated)
-  }
-
-  async function removeChannel(channelId: string) {
-    const updated = await smartrekClient.deleteChannel(sensor.id, channelId)
-    if (updated) onChange(updated)
-  }
-
-  async function submitNewChannel() {
-    if (!newChannelLabel.trim()) return
-    const updated = await smartrekClient.addChannel(sensor.id, {
-      label: newChannelLabel.trim(),
-      kind: newChannelKind,
-      unit: CHANNEL_KIND_UNITS[newChannelKind],
-    })
-    if (updated) onChange(updated)
-    setAddingChannel(false)
-    setNewChannelLabel('')
-  }
-
   async function addNotificationChannel() {
     const channel: NotificationChannel = { id: uid(), type: 'sms', target: '', enabled: true }
     const updated = await smartrekClient.upsertNotificationChannel(sensor.id, channel)
@@ -110,15 +80,23 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
       <div className="relative w-full max-w-lg h-full bg-panel border-l border-line flex flex-col overflow-y-auto">
         <div className="p-5 border-b border-line flex items-start justify-between gap-3">
           <div className="flex-1">
-            <StatusBadge status={sensor.status} />
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={saveName}
-              className="font-display font-semibold text-xl bg-transparent border-none outline-none w-full mt-1 focus:ring-1 focus:ring-sap rounded px-1 -ml-1"
+              className="font-display font-semibold text-xl text-sap bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-sap rounded px-1 -ml-1"
             />
             {sensor.serialNumber && (
               <p className="text-xs font-mono text-muted mt-0.5">{sensor.serialNumber}</p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <StatusBadge status={status} />
+            {tempChannel && (
+              <span className="font-mono text-sm tabular-nums">
+                {tempChannel.currentValue}
+                <span className="text-muted text-xs ml-0.5">{tempChannel.unit}</span>
+              </span>
             )}
           </div>
           <button onClick={onClose} className="text-muted hover:text-text text-xl leading-none px-1">
@@ -127,54 +105,9 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
         </div>
 
         <div className="p-5 flex flex-col gap-6">
-          {/* Canaux de lecture */}
+          {/* Canaux de lecture — fixes de fabrication, non modifiables */}
           <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-display text-sm tracking-wide text-muted uppercase">Canaux</h4>
-              {!addingChannel && (
-                <button onClick={() => setAddingChannel(true)} className="text-xs font-mono text-sap hover:underline">
-                  + Ajouter un canal
-                </button>
-              )}
-            </div>
-
-            {addingChannel && (
-              <div className="rounded border border-sap bg-panel-raised p-3 flex flex-col gap-2">
-                <input
-                  value={newChannelLabel}
-                  onChange={(e) => setNewChannelLabel(e.target.value)}
-                  placeholder="Nom du canal (ex. Vide 4)"
-                  autoFocus
-                  className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
-                />
-                <select
-                  value={newChannelKind}
-                  onChange={(e) => setNewChannelKind(e.target.value as ChannelKind)}
-                  className="bg-base border border-line rounded px-2 py-1 text-sm outline-none"
-                >
-                  {Object.entries(CHANNEL_KIND_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label} ({CHANNEL_KIND_UNITS[value as ChannelKind]})
-                    </option>
-                  ))}
-                </select>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setAddingChannel(false)}
-                    className="text-xs text-muted hover:text-text px-2 py-1"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={submitNewChannel}
-                    disabled={!newChannelLabel.trim()}
-                    className="text-xs bg-sap text-base font-medium px-2 py-1 rounded disabled:opacity-40"
-                  >
-                    Ajouter
-                  </button>
-                </div>
-              </div>
-            )}
+            <h4 className="font-display text-sm tracking-wide text-muted uppercase">Canaux</h4>
 
             {sensor.channels.map((channel) => {
               const alarming = isChannelAlarming(channel)
@@ -185,11 +118,7 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
                       <span className="font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border border-line text-muted">
                         {CHANNEL_KIND_ABBR[channel.kind]}
                       </span>
-                      <input
-                        defaultValue={channel.label}
-                        onBlur={(e) => e.target.value !== channel.label && renameChannel(channel.id, e.target.value)}
-                        className="bg-transparent text-sm font-medium outline-none border-b border-transparent focus:border-line min-w-0 flex-1"
-                      />
+                      <span className="text-sm font-medium">{channel.label}</span>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className={`font-mono text-xl tabular-nums ${alarming ? 'text-danger' : ''}`}>
@@ -197,13 +126,6 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
                       </span>
                       <span className="font-mono text-xs text-muted">{channel.unit}</span>
                     </div>
-                    <button
-                      onClick={() => removeChannel(channel.id)}
-                      className="text-muted hover:text-danger text-sm px-1 shrink-0"
-                      aria-label={`Supprimer le canal ${channel.label}`}
-                    >
-                      ✕
-                    </button>
                   </div>
 
                   <Sparkline

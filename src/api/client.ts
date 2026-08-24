@@ -91,7 +91,6 @@ export const smartrekClient = {
       id: uid('sn'),
       name: input.name,
       siteId: input.siteId,
-      status: 'offline',
       lastReadingAt: new Date().toISOString(),
       channels: input.channels.map((c) => ({
         id: uid('ch'),

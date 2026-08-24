@@ -36,14 +36,17 @@ export interface NotificationChannel {
 }
 
 /** Un nœud capteur physique — peut exposer plusieurs canaux de lecture
- * (ex. 3 sondes de vide + 1 sonde de température sur le même boîtier). */
+ * (ex. 3 sondes de vide + 1 sonde de température sur le même boîtier).
+ * Le statut (en ligne/hors ligne/alarme) n'est PAS stocké ici — il est
+ * calculé à la volée depuis `lastReadingAt` et les seuils des canaux,
+ * voir src/lib/sensorStatus.ts. Un champ figé se désynchronise trop
+ * facilement de la réalité. */
 export interface Sensor {
   id: string
   name: string
   mac?: string
   serialNumber?: string
   siteId: string
-  status: SensorStatus
   lastReadingAt: string // ISO timestamp
   channels: SensorChannel[]
   notificationChannels: NotificationChannel[]

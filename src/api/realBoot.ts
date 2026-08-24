@@ -17,10 +17,10 @@ import { getCachedToken, getUserId, API_BASE } from './auth'
  * une disposition différente dans `dats`, à capturer et ajuster plus tard.
  */
 const CHANNEL_PATTERN: { kind: ChannelKind; label: string }[] = [
-  { kind: 'vacuum', label: 'Vide 1' },
+  { kind: 'vacuum', label: 'Port 1' },
   { kind: 'temperature', label: 'Température' },
-  { kind: 'vacuum', label: 'Vide 2' },
-  { kind: 'vacuum', label: 'Vide 3' },
+  { kind: 'vacuum', label: 'Port 2' },
+  { kind: 'vacuum', label: 'Port 3' },
 ]
 
 interface RawRowItem {
@@ -68,7 +68,6 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
     mac: item.mac,
     serialNumber: item.serialNumber,
     siteId,
-    status: channels.length > 0 ? 'online' : 'offline',
     lastReadingAt: new Date(decoded.timestampMs).toISOString(),
     channels,
     notificationChannels: [],

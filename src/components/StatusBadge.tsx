@@ -1,10 +1,10 @@
 import type { SensorStatus } from '../types/sensor'
 
 const STATUS_CONFIG: Record<SensorStatus, { label: string; dot: string; text: string }> = {
-  online: { label: 'En ligne', dot: 'bg-sap', text: 'text-sap' },
+  online: { label: 'En ligne', dot: 'bg-lime', text: 'text-lime' },
   warning: { label: 'Attention', dot: 'bg-syrup', text: 'text-syrup' },
   alarm: { label: 'Alarme', dot: 'bg-danger', text: 'text-danger' },
-  offline: { label: 'Hors ligne', dot: 'bg-muted', text: 'text-muted' },
+  offline: { label: 'Hors ligne', dot: 'bg-danger', text: 'text-danger' },
 }
 
 export function StatusBadge({ status }: { status: SensorStatus }) {

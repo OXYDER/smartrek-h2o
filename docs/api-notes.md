@@ -180,6 +180,42 @@ POST https://data3.smartrek.io/api/Alarms/get-user-alarm-activities-with-limit
 Body `{ "limit": 10, "skip": 1 }` → `{ "alarmActivities": [] }` —
 journal paginé des alarmes déclenchées, vide ici.
 
+### Autres types de nœuds découverts (capture HAR élargie)
+
+En plus de `type: 5` (passerelle) et `type: 0` (capteur de vide), un compte
+avec plus de nœuds a révélé :
+
+- **`type: 1`** — ex. `Bassin S3`, `Bassin S4`. Payload `dats` de **24
+  octets** (vs 34 pour le vide) — structure différente, pas encore
+  décodée. Probablement un capteur de **niveau** (bassin de rétention).
+- **`type: 10`** — ex. `répéteur bord chalet`, `répét 1`. Payload de
+  seulement **11 octets**. C'est un **répéteur radio** (relais réseau),
+  pas un capteur de mesure.
+
+### Batterie — pas trouvée pour les capteurs de vide
+
+Aucun champ `battery`/`batteryLevel` dans les clés JSON des row_items
+(`id, type, mac, name, serialNumber, latitude, longitude,
+statusOverwrite, dats, status, timestamp`). Analyse octet par octet du
+`dats` des capteurs de vide (`type: 0`) sur 22 échantillons réels : aucun
+octet ne varie dans une plage 0-100 cohérente par appareil — la plupart
+sont soit des constantes protocolaires (~78-86, probablement une version
+de firmware), soit des sentinelles déjà identifiées.
+
+`status`/`statusOverwrite` = `0` ou `3` (confirmé : `3` = alarme active,
+correspond exactement aux 2 capteurs ayant aussi un octet différent en
+tête de `dats`) — pas la batterie non plus.
+
+**Piste à confirmer** : sur les répéteurs (`type: 10`, 11 octets), l'octet
+à l'index 9 (2e après le timestamp) vaut `97`, `30`, `29` sur 3 exemples —
+plage plausible pour un pourcentage, mais seulement 3 échantillons et ce
+sont des répéteurs, pas des capteurs. Rien d'aussi net pour `type: 0`.
+
+**Pour trancher** : il faudrait soit un vrai capteur de vide dont l'app
+affiche la batterie à l'écran (capture avec la valeur affichée en
+parallèle, même méthode que pour calibrer les canaux), soit tomber sur un
+appel réseau dédié qui la retournerait séparément.
+
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
 - [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)
@@ -188,3 +224,6 @@ journal paginé des alarmes déclenchées, vide ici.
 - [ ] **Créer/modifier un groupe de destinataires** — endpoint d'écriture
 - [ ] Ouvrir un vrai graphique d'historique pour voir si `Nodes/query` retourne des données (et avec quels paramètres exacts)
 - [ ] Détail/historique d'un capteur avec valeurs affichées à l'écran en parallèle (pour calibrer `dats` sur d'autres types que le vide)
+- [ ] **Batterie** : capture avec le % affiché à l'écran pour un capteur de vide précis, pour trouver l'octet correspondant dans `dats`
+- [ ] Décoder le `dats` du type `1` (Bassin/niveau, 24 octets) avec une valeur affichée en parallèle
+- [ ] Confirmer si le type `10` (répéteur) doit apparaître dans l'UI de gestion des capteurs, ou être filtré (ce n'est pas un capteur de mesure)

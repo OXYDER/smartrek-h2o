@@ -1,7 +1,7 @@
 import type { ChannelKind, Sensor, SensorChannel, Site } from '../types/sensor'
 import { CHANNEL_KIND_UNITS } from '../types/sensor'
 import { decodeDats } from './decodeDats'
-import { getCachedToken, API_BASE } from './auth'
+import { getCachedToken, getUserId, API_BASE } from './auth'
 
 /**
  * Mapping row_item → Sensor/Site à partir de la réponse réelle de
@@ -91,43 +91,15 @@ export interface BootResult {
   sensors: Sensor[]
 }
 
-let cachedUserId: string | null = null
-
-export function clearUserId(): void {
-  cachedUserId = null
-}
-
-async function ensureUserId(token: string): Promise<string> {
-  if (cachedUserId) return cachedUserId
-  // Le endpoint /v2/boot exige { userId } dans le body (confirmé par capture
-  // HAR réelle), mais /Account/login ne nous a pas encore montré son userId
-  // en clair. On le récupère via un endpoint qui le renvoie de façon fiable.
-  const res = await fetch(`${API_BASE}/Alarms/get-user-alarm-recipient-groups`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/plain, */*',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({}),
-  })
-  if (!res.ok) throw new Error(`Impossible de récupérer le userId (HTTP ${res.status})`)
-  const data = await res.json()
-  const userId = data?.recipientGroups?.[0]?.userId
-  if (!userId) throw new Error('userId introuvable dans la réponse recipient-groups')
-  cachedUserId = userId
-  return userId
-}
-
 export async function fetchBoot(): Promise<BootResult> {
   const token = getCachedToken()
-  if (!token) {
+  const userId = getUserId()
+  if (!token || !userId) {
     throw new Error('Non authentifié — reconnecte-toi.')
   }
 
   let res: Response
   try {
-    const userId = await ensureUserId(token)
     res = await fetch(`${API_BASE}/v2/boot`, {
       method: 'POST',
       headers: {
@@ -137,8 +109,7 @@ export async function fetchBoot(): Promise<BootResult> {
       },
       body: JSON.stringify({ userId }),
     })
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('userId')) throw err
+  } catch {
     throw new Error(
       "Échec réseau vers l'API Smartrek — possible blocage CORS depuis ce domaine (voir README, section proxy)."
     )

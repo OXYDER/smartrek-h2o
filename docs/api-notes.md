@@ -1,6 +1,6 @@
 # Notes API Smartrek H2O (reverse engineering)
 
-## Endpoint : login
+## Endpoint : login (réponse complète confirmée ✓)
 ```
 POST https://data3.smartrek.io/api/Account/login
 Content-Type: application/json
@@ -14,9 +14,35 @@ Body :
   "sessionId": "<uuid généré côté client, ex crypto.randomUUID()>"
 }
 ```
-- Le `sessionId` semble être un UUID v4 généré à chaque nouvelle session/appareil, pas un identifiant fixe.
-- Réponse : pas encore capturée en entier — à confirmer la forme exacte (JWT direct dans le body ? `token`/`accessToken` ? refresh token séparé ?).
-- ⚠️ Ne jamais committer de vrais identifiants — ils vivent uniquement dans `.env` local (voir `.env.example`), chargé par `src/api/auth.ts`.
+Réponse :
+```json
+{
+  "user": { "_id": "...", "email": "...", "firstName": "...", "lastName": "..." },
+  "domain": { "...": "même forme que user" },
+  "jwtToken": "eyJ...",
+  "refreshToken": "...",
+  "sessionId": "...",
+  "expiresIn": "15m"
+}
+```
+- Le JWT expire après **~15 minutes** — renouvellement obligatoire.
+- `user._id` = le `userId` requis par `/boot` (voir plus bas), pas besoin
+  d'appel séparé pour l'obtenir.
+- ⚠️ Ne jamais committer de vrais identifiants — ils vivent uniquement
+  dans l'écran de login au runtime.
+
+## Endpoint : refreshtoken (renouvellement, réponse complète confirmée ✓)
+```
+POST https://data3.smartrek.io/api/Account/refreshtoken
+Content-Type: application/json
+```
+Body : `{ "token": "<refreshToken>", "sessionId": "<sessionId>" }`
+Réponse : **même forme que login** (nouveau `jwtToken` + `refreshToken` +
+`expiresIn`) — donc le cycle se répète indéfiniment tant que l'app reste
+ouverte. Implémenté dans `src/api/auth.ts` : renouvellement automatique
+programmé à 80% de la durée de vie du token, avec persistance de la
+session dans `sessionStorage` (survit à un F5, pas à la fermeture de
+l'onglet).
 
 ## Endpoint : boot
 ```
@@ -26,9 +52,8 @@ Content-Type: application/json
 ```
 Body (confirmé par capture HAR réelle) : `{ "userId": "<id utilisateur>" }`
 — **pas** un body vide comme on l'avait supposé au départ. Le `userId`
-s'obtient de façon fiable via `Alarms/get-user-alarm-recipient-groups`
-(champ `userId` du premier groupe retourné) — implémenté dans
-`src/api/realBoot.ts::ensureUserId()`, mis en cache après le premier appel.
+vient directement de `user._id` dans la réponse de login/refreshtoken
+(voir plus haut) — pas d'appel réseau supplémentaire nécessaire.
 - CORS : `Access-Control-Allow-Origin: https://app3.smartrekh2o.com` (donc restreint à ce domaine — un proxy sera probablement nécessaire pour appeler depuis notre propre app)
 - Réponse : `{ nodes: [ { table, activeNode, smartgateway, smartgateway_global_status, softwareVersion, xmlcreated_tstamp, row_items: [...] } ] }`
 

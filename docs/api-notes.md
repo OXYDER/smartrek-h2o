@@ -192,29 +192,27 @@ avec plus de nœuds a révélé :
   seulement **11 octets**. C'est un **répéteur radio** (relais réseau),
   pas un capteur de mesure.
 
-### Batterie — pas trouvée pour les capteurs de vide
+### Batterie — trouvée ✓
 
-Aucun champ `battery`/`batteryLevel` dans les clés JSON des row_items
-(`id, type, mac, name, serialNumber, latitude, longitude,
-statusOverwrite, dats, status, timestamp`). Analyse octet par octet du
-`dats` des capteurs de vide (`type: 0`) sur 22 échantillons réels : aucun
-octet ne varie dans une plage 0-100 cohérente par appareil — la plupart
-sont soit des constantes protocolaires (~78-86, probablement une version
-de firmware), soit des sentinelles déjà identifiées.
+L'octet à l'index **14** du payload complet (34 octets pour un capteur de
+vide) encode le pourcentage de batterie :
 
-`status`/`statusOverwrite` = `0` ou `3` (confirmé : `3` = alarme active,
-correspond exactement aux 2 capteurs ayant aussi un octet différent en
-tête de `dats`) — pas la batterie non plus.
+```
+batterie% = octet[14] × 4 − 261
+```
 
-**Piste à confirmer** : sur les répéteurs (`type: 10`, 11 octets), l'octet
-à l'index 9 (2e après le timestamp) vaut `97`, `30`, `29` sur 3 exemples —
-plage plausible pour un pourcentage, mais seulement 3 échantillons et ce
-sont des répéteurs, pas des capteurs. Rien d'aussi net pour `type: 0`.
+Validé sur 4 capteurs réels avec la valeur affichée à l'écran en
+parallèle (`1`→79%, `2`→79%, `12-13-14`→75%, `23-24`→71%) — match exact
+sans arrondi dans les 4 cas. C'est l'octet qu'on avait pris pour une
+« constante protocolaire ~78-86 » tout au début de l'exploration —
+c'était la batterie depuis le départ.
 
-**Pour trancher** : il faudrait soit un vrai capteur de vide dont l'app
-affiche la batterie à l'écran (capture avec la valeur affichée en
-parallèle, même méthode que pour calibrer les canaux), soit tomber sur un
-appel réseau dédié qui la retournerait séparément.
+⚠️ Formule confirmée uniquement pour `type: 0` (capteurs de vide, 34
+octets). Les répéteurs (`type: 10`, affichent aussi un %, ex. `répét 1`
+→ 67%) ont une structure de payload différente (11 octets) — formule pas
+encore trouvée pour eux.
+
+Implémenté dans `src/api/decodeDats.ts::decodeBatteryPercent()`.
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
@@ -224,6 +222,7 @@ appel réseau dédié qui la retournerait séparément.
 - [ ] **Créer/modifier un groupe de destinataires** — endpoint d'écriture
 - [ ] Ouvrir un vrai graphique d'historique pour voir si `Nodes/query` retourne des données (et avec quels paramètres exacts)
 - [ ] Détail/historique d'un capteur avec valeurs affichées à l'écran en parallèle (pour calibrer `dats` sur d'autres types que le vide)
-- [ ] **Batterie** : capture avec le % affiché à l'écran pour un capteur de vide précis, pour trouver l'octet correspondant dans `dats`
+- [x] **Batterie** : `octet[14] × 4 − 261`, validé sur 4 capteurs réels
+- [ ] Formule batterie pour les répéteurs (`type: 10`) — structure de payload différente
 - [ ] Décoder le `dats` du type `1` (Bassin/niveau, 24 octets) avec une valeur affichée en parallèle
 - [ ] Confirmer si le type `10` (répéteur) doit apparaître dans l'UI de gestion des capteurs, ou être filtré (ce n'est pas un capteur de mesure)

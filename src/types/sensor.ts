@@ -49,6 +49,7 @@ export interface Sensor {
   serialNumber?: string
   siteId: string
   lastReadingAt: string // ISO timestamp
+  batteryPercent?: number
   channels: SensorChannel[]
   notificationChannels: NotificationChannel[]
   notes?: string

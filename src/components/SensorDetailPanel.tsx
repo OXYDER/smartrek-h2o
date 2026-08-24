@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { NotificationChannel, Sensor, ThresholdRule } from '../types/sensor'
 import { CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
+import { BatteryIndicator } from './BatteryIndicator'
 import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
 import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
@@ -92,12 +93,15 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             <StatusBadge status={status} />
-            {tempChannel && (
-              <span className="font-mono text-sm tabular-nums">
-                {tempChannel.currentValue}
-                <span className="text-muted text-xs ml-0.5">{tempChannel.unit}</span>
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {sensor.batteryPercent !== undefined && <BatteryIndicator percent={sensor.batteryPercent} />}
+              {tempChannel && (
+                <span className="font-mono text-sm tabular-nums">
+                  {tempChannel.currentValue}
+                  <span className="text-muted text-xs ml-0.5">{tempChannel.unit}</span>
+                </span>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="text-muted hover:text-text text-xl leading-none px-1">
             ×

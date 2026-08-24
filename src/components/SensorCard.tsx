@@ -1,5 +1,6 @@
 import type { Sensor } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
+import { BatteryIndicator } from './BatteryIndicator'
 import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorTypeLabel } from '../lib/sensorType'
 
@@ -27,12 +28,15 @@ export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => v
         <h3 className="font-display font-semibold text-lg leading-tight text-sap">{sensor.name}</h3>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <StatusBadge status={status} />
-          {tempChannel && (
-            <span className="font-mono text-sm tabular-nums text-text">
-              {tempChannel.currentValue}
-              <span className="text-muted text-xs ml-0.5">{tempChannel.unit}</span>
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {sensor.batteryPercent !== undefined && <BatteryIndicator percent={sensor.batteryPercent} />}
+            {tempChannel && (
+              <span className="font-mono text-sm tabular-nums text-text">
+                {tempChannel.currentValue}
+                <span className="text-muted text-xs ml-0.5">{tempChannel.unit}</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

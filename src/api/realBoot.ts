@@ -1,6 +1,6 @@
 import type { ChannelKind, Sensor, SensorChannel, Site } from '../types/sensor'
 import { CHANNEL_KIND_UNITS } from '../types/sensor'
-import { decodeDats } from './decodeDats'
+import { decodeDats, decodeBatteryPercent } from './decodeDats'
 import { getCachedToken, getUserId, API_BASE } from './auth'
 
 /**
@@ -69,6 +69,7 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
     serialNumber: item.serialNumber,
     siteId,
     lastReadingAt: new Date(decoded.timestampMs).toISOString(),
+    batteryPercent: decodeBatteryPercent(item.dats) ?? undefined,
     channels,
     notificationChannels: [],
   }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { AlertChannel, Sensor, ThresholdRule } from '../types/sensor'
-import { SENSOR_KIND_LABELS } from '../types/sensor'
+import type { NotificationChannel, Sensor, ThresholdRule, ChannelKind } from '../types/sensor'
+import { CHANNEL_KIND_LABELS, CHANNEL_KIND_UNITS, CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
@@ -16,10 +16,22 @@ function uid() {
   return Math.random().toString(36).slice(2, 9)
 }
 
+function isChannelAlarming(channel: Sensor['channels'][number]) {
+  return channel.thresholds.some(
+    (t) =>
+      t.enabled &&
+      ((t.max !== undefined && channel.currentValue >= t.max) ||
+        (t.min !== undefined && channel.currentValue <= t.min))
+  )
+}
+
 export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props) {
   const [name, setName] = useState(sensor.name)
   const [notes, setNotes] = useState(sensor.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [addingChannel, setAddingChannel] = useState(false)
+  const [newChannelLabel, setNewChannelLabel] = useState('')
+  const [newChannelKind, setNewChannelKind] = useState<ChannelKind>('temperature')
 
   async function saveName() {
     if (name === sensor.name) return
@@ -33,35 +45,57 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
     if (updated) onChange(updated)
   }
 
-  async function addThreshold() {
-    const rule: ThresholdRule = { id: uid(), label: 'Nouveau seuil', max: sensor.currentValue + 5, enabled: true }
-    const updated = await smartrekClient.upsertThreshold(sensor.id, rule)
+  async function addThreshold(channelId: string, currentValue: number) {
+    const rule: ThresholdRule = { id: uid(), label: 'Nouveau seuil', max: currentValue + 5, enabled: true }
+    const updated = await smartrekClient.upsertThreshold(sensor.id, channelId, rule)
     if (updated) onChange(updated)
   }
 
-  async function patchThreshold(rule: ThresholdRule) {
-    const updated = await smartrekClient.upsertThreshold(sensor.id, rule)
+  async function patchThreshold(channelId: string, rule: ThresholdRule) {
+    const updated = await smartrekClient.upsertThreshold(sensor.id, channelId, rule)
     if (updated) onChange(updated)
   }
 
-  async function removeThreshold(id: string) {
-    const updated = await smartrekClient.deleteThreshold(sensor.id, id)
+  async function removeThreshold(channelId: string, ruleId: string) {
+    const updated = await smartrekClient.deleteThreshold(sensor.id, channelId, ruleId)
     if (updated) onChange(updated)
   }
 
-  async function addAlertChannel() {
-    const channel: AlertChannel = { id: uid(), type: 'sms', target: '', enabled: true }
-    const updated = await smartrekClient.upsertAlertChannel(sensor.id, channel)
+  async function renameChannel(channelId: string, label: string) {
+    const updated = await smartrekClient.updateChannel(sensor.id, channelId, { label })
     if (updated) onChange(updated)
   }
 
-  async function patchAlertChannel(channel: AlertChannel) {
-    const updated = await smartrekClient.upsertAlertChannel(sensor.id, channel)
+  async function removeChannel(channelId: string) {
+    const updated = await smartrekClient.deleteChannel(sensor.id, channelId)
     if (updated) onChange(updated)
   }
 
-  async function removeAlertChannel(id: string) {
-    const updated = await smartrekClient.deleteAlertChannel(sensor.id, id)
+  async function submitNewChannel() {
+    if (!newChannelLabel.trim()) return
+    const updated = await smartrekClient.addChannel(sensor.id, {
+      label: newChannelLabel.trim(),
+      kind: newChannelKind,
+      unit: CHANNEL_KIND_UNITS[newChannelKind],
+    })
+    if (updated) onChange(updated)
+    setAddingChannel(false)
+    setNewChannelLabel('')
+  }
+
+  async function addNotificationChannel() {
+    const channel: NotificationChannel = { id: uid(), type: 'sms', target: '', enabled: true }
+    const updated = await smartrekClient.upsertNotificationChannel(sensor.id, channel)
+    if (updated) onChange(updated)
+  }
+
+  async function patchNotificationChannel(channel: NotificationChannel) {
+    const updated = await smartrekClient.upsertNotificationChannel(sensor.id, channel)
+    if (updated) onChange(updated)
+  }
+
+  async function removeNotificationChannel(id: string) {
+    const updated = await smartrekClient.deleteNotificationChannel(sensor.id, id)
     if (updated) onChange(updated)
   }
 
@@ -73,18 +107,19 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md h-full bg-panel border-l border-line flex flex-col overflow-y-auto">
+      <div className="relative w-full max-w-lg h-full bg-panel border-l border-line flex flex-col overflow-y-auto">
         <div className="p-5 border-b border-line flex items-start justify-between gap-3">
           <div className="flex-1">
-            <p className="text-xs font-mono text-muted uppercase tracking-wide">
-              {SENSOR_KIND_LABELS[sensor.kind]}
-            </p>
+            <StatusBadge status={sensor.status} />
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={saveName}
-              className="font-display text-xl bg-transparent border-none outline-none w-full mt-0.5 focus:ring-1 focus:ring-sap rounded px-1 -ml-1"
+              className="font-display font-semibold text-xl bg-transparent border-none outline-none w-full mt-1 focus:ring-1 focus:ring-sap rounded px-1 -ml-1"
             />
+            {sensor.serialNumber && (
+              <p className="text-xs font-mono text-muted mt-0.5">{sensor.serialNumber}</p>
+            )}
           </div>
           <button onClick={onClose} className="text-muted hover:text-text text-xl leading-none px-1">
             ×
@@ -92,100 +127,178 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
         </div>
 
         <div className="p-5 flex flex-col gap-6">
-          {/* Lecture actuelle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <StatusBadge status={sensor.status} />
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="font-mono text-4xl tabular-nums">{sensor.currentValue}</span>
-                <span className="font-mono text-base text-muted">{sensor.unit}</span>
-              </div>
-            </div>
-            <Sparkline data={sensor.history} width={140} height={44} />
-          </div>
-
-          {/* Seuils */}
-          <section className="flex flex-col gap-2">
+          {/* Canaux de lecture */}
+          <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h4 className="font-display text-sm tracking-wide text-muted uppercase">Seuils d'alerte</h4>
-              <button onClick={addThreshold} className="text-xs font-mono text-sap hover:underline">
-                + Ajouter
-              </button>
+              <h4 className="font-display text-sm tracking-wide text-muted uppercase">Canaux</h4>
+              {!addingChannel && (
+                <button onClick={() => setAddingChannel(true)} className="text-xs font-mono text-sap hover:underline">
+                  + Ajouter un canal
+                </button>
+              )}
             </div>
-            {sensor.thresholds.length === 0 && (
-              <p className="text-sm text-muted italic">Aucun seuil configuré.</p>
-            )}
-            {sensor.thresholds.map((t) => (
-              <div key={t.id} className="rounded border border-line bg-panel-raised p-3 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    value={t.label}
-                    onChange={(e) => patchThreshold({ ...t, label: e.target.value })}
-                    className="flex-1 bg-transparent text-sm font-medium outline-none border-b border-transparent focus:border-line"
-                  />
-                  <label className="flex items-center gap-1.5 text-xs text-muted">
-                    <input
-                      type="checkbox"
-                      checked={t.enabled}
-                      onChange={(e) => patchThreshold({ ...t, enabled: e.target.checked })}
-                      className="accent-sap"
-                    />
-                    Actif
-                  </label>
+
+            {addingChannel && (
+              <div className="rounded border border-sap bg-panel-raised p-3 flex flex-col gap-2">
+                <input
+                  value={newChannelLabel}
+                  onChange={(e) => setNewChannelLabel(e.target.value)}
+                  placeholder="Nom du canal (ex. Vide 4)"
+                  autoFocus
+                  className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
+                />
+                <select
+                  value={newChannelKind}
+                  onChange={(e) => setNewChannelKind(e.target.value as ChannelKind)}
+                  className="bg-base border border-line rounded px-2 py-1 text-sm outline-none"
+                >
+                  {Object.entries(CHANNEL_KIND_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label} ({CHANNEL_KIND_UNITS[value as ChannelKind]})
+                    </option>
+                  ))}
+                </select>
+                <div className="flex justify-end gap-2">
                   <button
-                    onClick={() => removeThreshold(t.id)}
-                    className="text-muted hover:text-danger text-sm px-1"
-                    aria-label="Supprimer ce seuil"
+                    onClick={() => setAddingChannel(false)}
+                    className="text-xs text-muted hover:text-text px-2 py-1"
                   >
-                    ✕
+                    Annuler
+                  </button>
+                  <button
+                    onClick={submitNewChannel}
+                    disabled={!newChannelLabel.trim()}
+                    className="text-xs bg-sap text-base font-medium px-2 py-1 rounded disabled:opacity-40"
+                  >
+                    Ajouter
                   </button>
                 </div>
-                <div className="flex gap-3 text-xs font-mono">
-                  <label className="flex items-center gap-1.5 text-muted">
-                    Min
-                    <input
-                      type="number"
-                      value={t.min ?? ''}
-                      onChange={(e) =>
-                        patchThreshold({ ...t, min: e.target.value === '' ? undefined : Number(e.target.value) })
-                      }
-                      placeholder="—"
-                      className="w-16 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
-                    />
-                  </label>
-                  <label className="flex items-center gap-1.5 text-muted">
-                    Max
-                    <input
-                      type="number"
-                      value={t.max ?? ''}
-                      onChange={(e) =>
-                        patchThreshold({ ...t, max: e.target.value === '' ? undefined : Number(e.target.value) })
-                      }
-                      placeholder="—"
-                      className="w-16 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
-                    />
-                  </label>
-                </div>
               </div>
-            ))}
+            )}
+
+            {sensor.channels.map((channel) => {
+              const alarming = isChannelAlarming(channel)
+              return (
+                <div key={channel.id} className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border border-line text-muted">
+                        {CHANNEL_KIND_ABBR[channel.kind]}
+                      </span>
+                      <input
+                        defaultValue={channel.label}
+                        onBlur={(e) => e.target.value !== channel.label && renameChannel(channel.id, e.target.value)}
+                        className="bg-transparent text-sm font-medium outline-none border-b border-transparent focus:border-line min-w-0 flex-1"
+                      />
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className={`font-mono text-xl tabular-nums ${alarming ? 'text-danger' : ''}`}>
+                        {channel.currentValue}
+                      </span>
+                      <span className="font-mono text-xs text-muted">{channel.unit}</span>
+                    </div>
+                    <button
+                      onClick={() => removeChannel(channel.id)}
+                      className="text-muted hover:text-danger text-sm px-1 shrink-0"
+                      aria-label={`Supprimer le canal ${channel.label}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <Sparkline
+                    data={channel.history}
+                    color={alarming ? 'var(--color-danger)' : 'var(--color-sap)'}
+                    width={440}
+                    height={36}
+                  />
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-muted uppercase">Seuils</span>
+                      <button
+                        onClick={() => addThreshold(channel.id, channel.currentValue)}
+                        className="text-xs font-mono text-sap hover:underline"
+                      >
+                        + Ajouter
+                      </button>
+                    </div>
+                    {channel.thresholds.length === 0 && (
+                      <p className="text-xs text-muted italic">Aucun seuil configuré.</p>
+                    )}
+                    {channel.thresholds.map((t) => (
+                      <div key={t.id} className="flex items-center gap-2 text-xs">
+                        <input
+                          value={t.label}
+                          onChange={(e) => patchThreshold(channel.id, { ...t, label: e.target.value })}
+                          className="flex-1 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
+                        />
+                        <label className="flex items-center gap-1 font-mono text-muted">
+                          Min
+                          <input
+                            type="number"
+                            value={t.min ?? ''}
+                            onChange={(e) =>
+                              patchThreshold(channel.id, {
+                                ...t,
+                                min: e.target.value === '' ? undefined : Number(e.target.value),
+                              })
+                            }
+                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                          />
+                        </label>
+                        <label className="flex items-center gap-1 font-mono text-muted">
+                          Max
+                          <input
+                            type="number"
+                            value={t.max ?? ''}
+                            onChange={(e) =>
+                              patchThreshold(channel.id, {
+                                ...t,
+                                max: e.target.value === '' ? undefined : Number(e.target.value),
+                              })
+                            }
+                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                          />
+                        </label>
+                        <input
+                          type="checkbox"
+                          checked={t.enabled}
+                          onChange={(e) => patchThreshold(channel.id, { ...t, enabled: e.target.checked })}
+                          className="accent-sap"
+                        />
+                        <button
+                          onClick={() => removeThreshold(channel.id, t.id)}
+                          className="text-muted hover:text-danger px-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </section>
 
-          {/* Canaux d'alerte */}
+          {/* Notifications */}
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <h4 className="font-display text-sm tracking-wide text-muted uppercase">Notifications</h4>
-              <button onClick={addAlertChannel} className="text-xs font-mono text-sap hover:underline">
+              <button onClick={addNotificationChannel} className="text-xs font-mono text-sap hover:underline">
                 + Ajouter
               </button>
             </div>
-            {sensor.alertChannels.length === 0 && (
+            {sensor.notificationChannels.length === 0 && (
               <p className="text-sm text-muted italic">Aucune notification configurée.</p>
             )}
-            {sensor.alertChannels.map((c) => (
+            {sensor.notificationChannels.map((c) => (
               <div key={c.id} className="rounded border border-line bg-panel-raised p-3 flex items-center gap-2">
                 <select
                   value={c.type}
-                  onChange={(e) => patchAlertChannel({ ...c, type: e.target.value as AlertChannel['type'] })}
+                  onChange={(e) =>
+                    patchNotificationChannel({ ...c, type: e.target.value as NotificationChannel['type'] })
+                  }
                   className="bg-base border border-line rounded px-1.5 py-1 text-xs font-mono outline-none"
                 >
                   <option value="sms">SMS</option>
@@ -194,7 +307,7 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
                 </select>
                 <input
                   value={c.target}
-                  onChange={(e) => patchAlertChannel({ ...c, target: e.target.value })}
+                  onChange={(e) => patchNotificationChannel({ ...c, target: e.target.value })}
                   placeholder={c.type === 'email' ? 'adresse@courriel.com' : 'Destinataire'}
                   className="flex-1 bg-transparent text-sm outline-none border-b border-transparent focus:border-line"
                 />
@@ -202,14 +315,13 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
                   <input
                     type="checkbox"
                     checked={c.enabled}
-                    onChange={(e) => patchAlertChannel({ ...c, enabled: e.target.checked })}
+                    onChange={(e) => patchNotificationChannel({ ...c, enabled: e.target.checked })}
                     className="accent-sap"
                   />
                 </label>
                 <button
-                  onClick={() => removeAlertChannel(c.id)}
+                  onClick={() => removeNotificationChannel(c.id)}
                   className="text-muted hover:text-danger text-sm px-1"
-                  aria-label="Supprimer cette notification"
                 >
                   ✕
                 </button>

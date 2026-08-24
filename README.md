@@ -83,15 +83,9 @@ l'UI, IBM Plex Mono pour les lectures numériques.
 Même pattern que les autres projets : Docker via Portainer, reverse proxy via
 Nginx Proxy Manager, GitHub pour le versioning.
 
-### ⚠️ Note de sécurité — identifiants Smartrek dans le bundle
-
-Vite fige les variables `VITE_*` dans le JS livré au navigateur au moment du
-build. Concrètement, l'email/mot de passe Smartrek utilisés pour le login
-seront extractibles par quiconque ouvre les DevTools sur le site déployé.
-C'est acceptable seulement si l'accès au site est lui-même restreint (auth
-basique ou allowlist IP sur Nginx Proxy Manager — voir plus bas). Une vraie
-correction plus tard serait un petit backend qui garde les identifiants
-côté serveur et n'expose au client qu'un token de session.
+L'app se connecte à Smartrek H2O via un écran de login au runtime (tes
+identifiants sont saisis dans le navigateur, jamais compilés dans le code ni
+committés) — le build Docker n'a donc besoin d'aucun secret.
 
 ### 1. Stack Portainer (build depuis le repo Git)
 
@@ -99,10 +93,7 @@ Dans Portainer → **Stacks → Add stack → Repository** :
 - Repository URL : `https://github.com/OXYDER/smartrek-h2o`
 - Reference : `refs/heads/main`
 - Compose path : `docker-compose.yml`
-- Environment variables (dans Portainer, pas dans le repo) :
-  - `VITE_SMARTREK_EMAIL`
-  - `VITE_SMARTREK_PASSWORD`
-  - `VITE_SMARTREK_API_BASE` (optionnel, défaut déjà bon)
+- Aucune variable d'environnement requise.
 - **GitOps updates** : active le polling automatique (ex. toutes les 5 min)
   ou configure un webhook GitHub → Portainer pour un redéploiement immédiat
   à chaque push.
@@ -116,9 +107,9 @@ Nouveau **Proxy Host** :
 - Domain : `h2o.resotik.ca`
 - Forward to : IP interne du NAS, port `8091`
 - SSL : demande un certificat Let's Encrypt, force HTTPS
-- **Access List** : configure une auth basique (ou une allowlist IP) tant
-  que les identifiants Smartrek sont dans le bundle client — voir la note
-  de sécurité ci-dessus.
+- Une auth basique reste une bonne idée pour un outil interne (évite qu'un
+  visiteur externe tombe sur l'écran de login), mais n'est plus une
+  nécessité de sécurité comme avant.
 
 ### 3. DNS
 

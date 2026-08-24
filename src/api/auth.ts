@@ -19,7 +19,31 @@
  * backend plutôt que depuis le navigateur.
  */
 
+/**
+ * Authentification contre la vraie API Smartrek H2O.
+ *
+ * Découvert par capture réseau (DevTools) :
+ *   POST {API_BASE}/Account/login
+ *   body: { email, domain, password, sessionId }
+ *   → réponse attendue : un JWT (forme exacte à confirmer — colle-moi la
+ *     réponse complète de /Account/login une fois testée)
+ *
+ * L'utilisateur entre ses identifiants dans l'écran de login au runtime
+ * (voir components/LoginScreen.tsx) — rien n'est jamais compilé dans le
+ * bundle. Le token obtenu est gardé en mémoire + sessionStorage (effacé à
+ * la fermeture de l'onglet), comme n'importe quelle app web authentifiée.
+ *
+ * ATTENTION CORS : la réponse capturée sur /api/v2/boot renvoyait
+ *   Access-Control-Allow-Origin: https://app3.smartrekh2o.com
+ * c'est-à-dire que le serveur pourrait refuser les requêtes venant d'un
+ * autre domaine (localhost:5173, ou h2o.resotik.ca). Si un appel depuis le
+ * navigateur échoue avec une erreur CORS, il faudra un petit proxy serveur
+ * (voir README) qui relaie la requête depuis le backend plutôt que depuis
+ * le navigateur.
+ */
+
 const API_BASE = import.meta.env.VITE_SMARTREK_API_BASE ?? 'https://data3.smartrek.io/api'
+const SESSION_KEY = 'smartrek_h2o_token'
 
 export interface LoginResponse {
   // TODO: ajuster une fois qu'on a vu la vraie forme de la réponse.
@@ -33,7 +57,7 @@ function generateSessionId(): string {
   return crypto.randomUUID()
 }
 
-let cachedToken: string | null = null
+let cachedToken: string | null = sessionStorage.getItem(SESSION_KEY)
 
 export async function login(email: string, password: string): Promise<string> {
   const res = await fetch(`${API_BASE}/Account/login`, {
@@ -59,19 +83,8 @@ export async function login(email: string, password: string): Promise<string> {
   // directement dans un header de réponse — à confirmer avec une vraie
   // réponse capturée.
   cachedToken = data.token
+  sessionStorage.setItem(SESSION_KEY, cachedToken)
   return cachedToken
-}
-
-export async function ensureToken(): Promise<string> {
-  if (cachedToken) return cachedToken
-  const email = import.meta.env.VITE_SMARTREK_EMAIL
-  const password = import.meta.env.VITE_SMARTREK_PASSWORD
-  if (!email || !password) {
-    throw new Error(
-      'VITE_SMARTREK_EMAIL / VITE_SMARTREK_PASSWORD manquants — copie .env.example en .env et remplis-les.'
-    )
-  }
-  return login(email, password)
 }
 
 export function getCachedToken(): string | null {
@@ -80,4 +93,5 @@ export function getCachedToken(): string | null {
 
 export function clearToken(): void {
   cachedToken = null
+  sessionStorage.removeItem(SESSION_KEY)
 }

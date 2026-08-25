@@ -4,6 +4,7 @@ import { smartrekClient } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { SensorCard } from '../components/SensorCard'
 import { SensorTable } from '../components/SensorTable'
+import { SitesMap } from '../components/SitesMap'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
@@ -64,6 +65,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [bootError, setBootError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showingMap, setShowingMap] = useState(false)
 
   async function loadData() {
     const [s, se] = await Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()])
@@ -187,15 +189,19 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         onSelectAll={() => {
           setActiveSiteId(null)
           setActiveCategory(null)
+          setShowingMap(false)
         }}
         onSelectCategory={(siteId, categoryId) => {
           setActiveSiteId(siteId)
           setActiveCategory(categoryId)
+          setShowingMap(false)
         }}
         onRenameSite={renameSite}
         onLogout={onLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        showingMap={showingMap}
+        onShowMap={() => setShowingMap(true)}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -210,8 +216,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <div className="min-w-0">
               <h1 className="font-display text-lg sm:text-2xl truncate">
-                {activeSiteId ? sites.find((s) => s.id === activeSiteId)?.name : 'Tous les capteurs'}
-                {activeCategory && (
+                {showingMap
+                  ? 'Carte des passerelles'
+                  : activeSiteId
+                    ? sites.find((s) => s.id === activeSiteId)?.name
+                    : 'Tous les capteurs'}
+                {!showingMap && activeCategory && (
                   <span className="text-muted">
                     {' '}
                     —{' '}
@@ -221,8 +231,14 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 )}
               </h1>
               <p className="text-xs sm:text-sm text-muted font-mono truncate">
-                {filtered.length} capteur{filtered.length !== 1 ? 's' : ''}
-                {alarmCount > 0 && <span className="text-danger"> · {alarmCount} en alarme</span>}
+                {showingMap ? (
+                  `${sites.length} site${sites.length !== 1 ? 's' : ''}`
+                ) : (
+                  <>
+                    {filtered.length} capteur{filtered.length !== 1 ? 's' : ''}
+                    {alarmCount > 0 && <span className="text-danger"> · {alarmCount} en alarme</span>}
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -253,42 +269,53 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filtrer par nom…"
-            className="text-xs font-mono bg-panel border border-line rounded-full px-3 py-1.5 outline-none focus:border-sap w-40 sm:w-56"
-          />
-          <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
-          <Dropdown
-            label="Filtrer"
-            options={FILTER_OPTIONS}
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as SensorStatus | 'all')}
-          />
-          <div className="ml-auto flex gap-1 shrink-0">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
-                viewMode === 'table' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
-              }`}
-            >
-              ☰ Tableau
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
-                viewMode === 'grid' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
-              }`}
-            >
-              ▦ Grille
-            </button>
+        {!showingMap && (
+          <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filtrer par nom…"
+              className="text-xs font-mono bg-panel border border-line rounded-full px-3 py-1.5 outline-none focus:border-sap w-40 sm:w-56"
+            />
+            <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
+            <Dropdown
+              label="Filtrer"
+              options={FILTER_OPTIONS}
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as SensorStatus | 'all')}
+            />
+            <div className="ml-auto flex gap-1 shrink-0">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                  viewMode === 'table' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+                }`}
+              >
+                ☰ Tableau
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                  viewMode === 'grid' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+                }`}
+              >
+                ▦ Grille
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
-          {loading ? (
+          {showingMap ? (
+            <SitesMap
+              sites={sites}
+              onSelectSite={(id) => {
+                setActiveSiteId(id)
+                setActiveCategory(null)
+                setShowingMap(false)
+              }}
+            />
+          ) : loading ? (
             <p className="text-muted font-mono text-sm">Chargement…</p>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16">

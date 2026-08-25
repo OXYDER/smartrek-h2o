@@ -5,6 +5,7 @@ import { DeviceIcon } from './DeviceIcon'
 import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorTypeLabel, getSensorIconKind } from '../lib/sensorType'
 import { getBatteryColor } from '../lib/battery'
+import { getPortDifferential } from '../lib/differential'
 
 type SortOption =
   | 'default'
@@ -149,9 +150,17 @@ export function SensorTable({ sensors, allSensors, onOpen, sortBy, onSortChange 
                         {vacuumChannels.map((c) => {
                           const alarming = isChannelAlarming(c)
                           const portNum = c.label.match(/\d+/)?.[0] ?? '•'
+                          const diff = getPortDifferential(sensor, c, allSensors)
                           return (
                             <span key={c.id} className={alarming ? 'text-danger' : 'text-text'}>
                               <span className="text-muted">{portNum}:</span> {c.currentValue}
+                              {diff !== undefined && (
+                                <span className="text-muted">
+                                  {' '}
+                                  ({diff > 0 ? '+' : ''}
+                                  {diff})
+                                </span>
+                              )}
                             </span>
                           )
                         })}

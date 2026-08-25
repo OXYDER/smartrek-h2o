@@ -278,12 +278,25 @@ Ajoutée côté app (pas dérivée de l'API Smartrek — équivalent local à la
 colonne « Différentiel relâcheur » vue dans un autre tableau de bord
 Smartrek de référence). Chaque capteur de vide peut désigner un autre
 capteur de vide comme référence (typiquement celui à la station) ;
-l'app calcule l'écart entre la moyenne des ports actifs des deux
-capteurs et peut alarmer si l'écart dépasse un seuil configuré.
-Implémenté dans `src/lib/differential.ts`, champs `referenceSensorId` /
+l'app compare **port par port** (même numéro de port des deux côtés,
+pas une moyenne) et affiche l'écart entre parenthèses à côté de chaque
+valeur — sur les cartes, le tableau, et le panneau de détail. Alarme
+configurable (min/max) sur l'écart de n'importe quel port. Implémenté
+dans `src/lib/differential.ts`, champs `referenceSensorId` /
 `differentialThreshold` sur `Sensor`. Stocké localement pour l'instant
 (comme les seuils de canaux) — pas d'endpoint d'écriture Smartrek connu
 pour ça.
+
+## Fonctionnalité locale — carte des passerelles
+
+Vue « Carte » accessible depuis la sidebar, affiche chaque passerelle
+comme marqueur sur une carte interactive (Leaflet + tuiles
+OpenStreetMap, pas de clé API requise — contrairement à Google Maps
+utilisé par l'app Smartrek d'origine). Clique un marqueur → bascule vers
+la liste des capteurs de ce site. Les sites sans coordonnées GPS valides
+(0,0 ou absentes) sont simplement exclus des marqueurs, avec un message
+si aucun site n'a de coordonnées. Implémenté dans
+`src/components/SitesMap.tsx`.
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)

@@ -8,7 +8,7 @@ import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
 import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorIconKind } from '../lib/sensorType'
-import { getVacuumAverage, getDifferential, isDifferentialAlarming } from '../lib/differential'
+import { getPortDifferential, isDifferentialAlarming } from '../lib/differential'
 
 interface Props {
   sensor: Sensor
@@ -34,7 +34,6 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
     (s) => s.id !== sensor.id && s.channels.some((c) => c.kind === 'vacuum')
   )
   const referenceSensor = allSensors.find((s) => s.id === sensor.referenceSensorId)
-  const differential = getDifferential(sensor, allSensors)
   const differentialAlarming = isDifferentialAlarming(sensor, allSensors)
 
   async function setReferenceSensor(referenceSensorId: string) {
@@ -161,6 +160,7 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
               .filter((c) => c.kind !== 'temperature')
               .map((channel) => {
               const alarming = isChannelAlarming(channel)
+              const diff = channel.kind === 'vacuum' ? getPortDifferential(sensor, channel, allSensors) : undefined
               return (
                 <div key={channel.id} className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-2">
@@ -175,6 +175,12 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                         {channel.currentValue}
                       </span>
                       <span className="font-mono text-xs text-muted">{channel.unit}</span>
+                      {diff !== undefined && (
+                        <span className="font-mono text-xs text-muted">
+                          ({diff > 0 ? '+' : ''}
+                          {diff})
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -278,30 +284,12 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
 
               {sensor.referenceSensorId && (
                 <div className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">
-                      {referenceSensor ? `Vs ${referenceSensor.name}` : 'Référence introuvable'}
-                    </span>
-                    {differential !== undefined && (
-                      <span className={`font-mono text-lg ${differentialAlarming ? 'text-danger' : ''}`}>
-                        {differential > 0 ? '+' : ''}
-                        {differential} inHg
-                      </span>
-                    )}
-                  </div>
-                  {differential === undefined && (
-                    <p className="text-xs text-muted italic">
-                      Différentiel indisponible (référence hors ligne ou sans lecture de vide).
-                    </p>
-                  )}
-                  {getVacuumAverage(sensor) !== undefined && (
-                    <p className="text-xs font-mono text-muted">
-                      Moyenne de ce capteur : {getVacuumAverage(sensor)} inHg
-                      {referenceSensor && getVacuumAverage(referenceSensor) !== undefined && (
-                        <> · Moyenne référence : {getVacuumAverage(referenceSensor)} inHg</>
-                      )}
-                    </p>
-                  )}
+                  <p className={`text-sm ${differentialAlarming ? 'text-danger' : 'text-muted'}`}>
+                    {differentialAlarming && '⚠ '}
+                    {referenceSensor
+                      ? `Écart affiché entre parenthèses sur chaque port ci-dessus, vs ${referenceSensor.name}.`
+                      : 'Référence introuvable.'}
+                  </p>
 
                   <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
                     <div className="flex items-center justify-between">

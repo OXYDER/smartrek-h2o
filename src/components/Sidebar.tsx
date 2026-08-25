@@ -22,6 +22,8 @@ interface Props {
   onLogout: () => void
   open: boolean
   onClose: () => void
+  showingMap: boolean
+  onShowMap: () => void
 }
 
 function CategoryRow({
@@ -70,6 +72,8 @@ export function Sidebar({
   onLogout,
   open,
   onClose,
+  showingMap,
+  onShowMap,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -127,12 +131,23 @@ export function Sidebar({
         <nav className="flex-1 p-2 flex flex-col gap-0.5 overflow-y-auto">
           <button
             onClick={() => {
+              onShowMap()
+              onClose()
+            }}
+            className={`text-left text-sm px-3 py-2 rounded transition-colors flex items-center gap-2 ${
+              showingMap ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+            }`}
+          >
+            <span className="text-sm">🗺</span> Carte
+          </button>
+          <button
+            onClick={() => {
               setExpandedSiteId(null)
               onSelectAll()
               onClose()
             }}
             className={`text-left text-sm px-3 py-2 rounded transition-colors ${
-              activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+              !showingMap && activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
             }`}
           >
             Tous les sites

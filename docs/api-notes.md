@@ -256,6 +256,22 @@ formule probablement fausse.
 
 Implémenté dans `src/api/decodeDats.ts::decodeBatteryPercent()`.
 
+### Correction — numérotation des ports par position fixe (bug)
+
+Découvert sur de vraies données en tableau : tous les capteurs
+« Vacuum double » (2 ports) affichaient leurs valeurs comme `Port 1` et
+`Port 3` — jamais `Port 1`/`Port 2`. Notre étiquetage d'origine assignait
+un nom fixe par position dans le payload (index 0 → Port 1, index 2 →
+Port 2, index 3 → Port 3), en supposant qu'un appareil 2 ports utilise
+toujours les positions 0 et 2. En réalité, les appareils 2 ports
+utilisent les positions **0 et 3** (pas 0 et 2) — la position 2 reste
+inactive/sentinelle pour ce modèle.
+
+Corrigé en numérotant les ports **dans l'ordre où ils apparaissent
+actifs** plutôt que par position fixe — robuste peu importe l'arrangement
+réel, y compris pour les appareils à plus de 3 ports (ex. `Vacuum
+Cabane`, 5 ports actifs).
+
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
 - [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)

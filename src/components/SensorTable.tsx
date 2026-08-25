@@ -15,6 +15,12 @@ type SortOption =
   | 'vacuum-desc'
   | 'battery-asc'
   | 'battery-desc'
+  | 'status-asc'
+  | 'status-desc'
+  | 'type-asc'
+  | 'type-desc'
+  | 'update-asc'
+  | 'update-desc'
 
 interface Props {
   sensors: Sensor[]
@@ -69,8 +75,14 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
             <tr className="bg-panel-raised border-b border-line">
               <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted w-8"></th>
               <SortHeader label="Nom" ascValue="name-asc" descValue="name-desc" sortBy={sortBy} onSortChange={onSortChange} />
-              <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted">Statut</th>
-              <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted">Ports (vide)</th>
+              <SortHeader label="Statut" ascValue="status-asc" descValue="status-desc" sortBy={sortBy} onSortChange={onSortChange} />
+              <SortHeader
+                label="Ports (vide)"
+                ascValue="vacuum-asc"
+                descValue="vacuum-desc"
+                sortBy={sortBy}
+                onSortChange={onSortChange}
+              />
               <SortHeader
                 label="Température"
                 ascValue="temp-asc"
@@ -85,8 +97,14 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
                 sortBy={sortBy}
                 onSortChange={onSortChange}
               />
-              <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted">Type</th>
-              <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted">Maj</th>
+              <SortHeader label="Type" ascValue="type-asc" descValue="type-desc" sortBy={sortBy} onSortChange={onSortChange} />
+              <SortHeader
+                label="Maj"
+                ascValue="update-asc"
+                descValue="update-desc"
+                sortBy={sortBy}
+                onSortChange={onSortChange}
+              />
             </tr>
           </thead>
           <tbody>

@@ -8,6 +8,7 @@ import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
 import { getSensorStatus } from '../lib/sensorStatus'
+import { getSensorTypeLabel } from '../lib/sensorType'
 import { sensorMatchesCategory, SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES } from '../lib/sensorCategories'
 
 type SortOption =
@@ -20,6 +21,12 @@ type SortOption =
   | 'vacuum-desc'
   | 'battery-asc'
   | 'battery-desc'
+  | 'status-asc'
+  | 'status-desc'
+  | 'type-asc'
+  | 'type-desc'
+  | 'update-asc'
+  | 'update-desc'
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'default', label: 'Trier par' },
@@ -87,6 +94,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
 
     const getTemp = (s: Sensor) => s.channels.find((c) => c.kind === 'temperature')?.currentValue
     const getVacuum = (s: Sensor) => s.channels.find((c) => c.kind === 'vacuum')?.currentValue
+    const STATUS_RANK: Record<string, number> = { alarm: 0, offline: 1, warning: 2, online: 3 }
 
     const sorted = [...result]
     sorted.sort((a, b) => {
@@ -121,6 +129,24 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           if (av === undefined) return 1
           if (bv === undefined) return -1
           return sortBy === 'battery-asc' ? av - bv : bv - av
+        }
+        case 'status-asc':
+        case 'status-desc': {
+          const av = STATUS_RANK[getSensorStatus(a)]
+          const bv = STATUS_RANK[getSensorStatus(b)]
+          return sortBy === 'status-asc' ? av - bv : bv - av
+        }
+        case 'type-asc':
+        case 'type-desc': {
+          const av = getSensorTypeLabel(a)
+          const bv = getSensorTypeLabel(b)
+          return sortBy === 'type-asc' ? av.localeCompare(bv, 'fr') : bv.localeCompare(av, 'fr')
+        }
+        case 'update-asc':
+        case 'update-desc': {
+          const av = new Date(a.lastReadingAt).getTime()
+          const bv = new Date(b.lastReadingAt).getTime()
+          return sortBy === 'update-asc' ? av - bv : bv - av
         }
         default:
           return 0

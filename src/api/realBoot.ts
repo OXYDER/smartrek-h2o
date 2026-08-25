@@ -54,6 +54,7 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
   // de lecture pour eux, mais on les inclut quand même (deviceType permet
   // de les compter dans les bonnes catégories de navigation).
   if (item.type === 0) {
+    let vacuumPortCounter = 0
     decoded.channels.forEach((ch, i) => {
       if (!ch.active) return
       const pattern = CHANNEL_PATTERN[i] ?? { kind: 'vacuum' as ChannelKind, label: `Canal ${i + 1}` }
@@ -64,9 +65,22 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
       // On la traite comme inactive plutôt que d'afficher un chiffre
       // impossible.
       if (pattern.kind === 'vacuum' && ch.rawValue < 0) return
+
+      // Le port physique câblé ne correspond pas toujours à la même
+      // position dans le payload selon le modèle (ex. un appareil 2 ports
+      // utilise parfois les positions 0 et 3, pas 0 et 1) — confirmé sur
+      // de vraies données où tous les "Vacuum double" avaient leurs deux
+      // valeurs aux positions 0 et 3. On numérote donc les ports dans
+      // l'ordre où ils apparaissent actifs, pas par position fixe.
+      let label = pattern.label
+      if (pattern.kind === 'vacuum') {
+        vacuumPortCounter += 1
+        label = `Port ${vacuumPortCounter}`
+      }
+
       channels.push({
         id: `${item.id}-ch${i}`,
-        label: pattern.label,
+        label,
         kind: pattern.kind,
         unit: CHANNEL_KIND_UNITS[pattern.kind],
         currentValue: ch.rawValue,

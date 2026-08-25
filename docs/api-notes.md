@@ -315,10 +315,19 @@ sélectionné) :
   (recherche, catégorie, statut) — la carte par site affiche exactement
   ce que la liste afficherait avec les mêmes filtres.
 
-Carte : Leaflet + tuiles OpenStreetMap, pas de clé API requise
-(contrairement à Google Maps utilisé par l'app Smartrek d'origine).
-Capteurs sans coordonnées propres : simplement absents de la carte par
-site, avec un compte affiché en dessous.
+Carte : Leaflet, 3 fonds gratuits sans clé API (contrairement à Google
+Maps utilisé par l'app Smartrek d'origine) — Rues (OpenStreetMap),
+Satellite (Esri World Imagery), Terrain (OpenTopoMap), sélecteur natif
+Leaflet en haut à droite. Le filtre sombre ne s'applique qu'aux tuiles
+Rues (`.map-inverted`, basculé en JS selon la couche active — inverser
+une image satellite donnerait n'importe quoi). Logique partagée dans
+`src/lib/mapLayers.ts`. Capteurs sans coordonnées propres : simplement
+absents de la carte par site, avec un compte affiché en dessous.
+
+Clic sur un pin de capteur (carte par site) : un résumé compact
+apparaît **sous la carte** (pas une modale par-dessus) — nom, statut,
+valeurs par port avec différentiel, batterie, type. Bouton « Voir le
+détail complet » pour ouvrir le vrai panneau de détail si besoin.
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)

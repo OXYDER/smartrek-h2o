@@ -73,10 +73,10 @@ body {
 }
 
 /* Habillage sombre pour la carte Leaflet — cohérent avec le thème.
-   On inverse seulement les tuiles (truc classique pour assombrir des
-   tuiles OSM claires), pas tout le conteneur — sinon popups et contrôles
-   héritent du filtre en double et deviennent imprévisibles. */
-.smartrek-map .leaflet-tile-pane {
+   Le filtre n'inverse que les tuiles "Rues" (via .map-inverted, basculé
+   en JS selon la couche active) — inverser une image satellite ou un
+   fond topo coloré donnerait n'importe quoi. */
+.smartrek-map.map-inverted .leaflet-tile-pane {
   filter: brightness(0.85) invert(1) contrast(0.9) hue-rotate(180deg) saturate(0.7);
 }
 .smartrek-map .leaflet-popup-content-wrapper {
@@ -85,4 +85,26 @@ body {
 }
 .smartrek-map .leaflet-popup-tip {
   background: var(--color-panel-raised);
+}
+.smartrek-map .leaflet-tooltip {
+  background: var(--color-panel-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.smartrek-map .leaflet-tooltip-top:before {
+  border-top-color: var(--color-panel-raised);
+}
+.smartrek-map .leaflet-control-layers {
+  background: var(--color-panel-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-line);
+}
+.smartrek-map .leaflet-control-layers-toggle {
+  filter: invert(0.85);
+}
+.smartrek-map .leaflet-control-layers-expanded {
+  padding: 8px 10px;
+  font-size: 12px;
 }

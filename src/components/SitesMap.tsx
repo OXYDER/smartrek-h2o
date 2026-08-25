@@ -5,6 +5,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import type { Site } from '../types/sensor'
+import { addBaseLayers } from '../lib/mapLayers'
 
 // Vite ne résout pas les URLs relatives des icônes par défaut de Leaflet —
 // on les réimporte explicitement comme assets.
@@ -42,10 +43,7 @@ export function SitesMap({ sites, onSelectSite, onPlaceSite }: Props) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
     const map = L.map(containerRef.current, { zoomControl: true }).setView([46.8, -71.3], 8)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map)
+    addBaseLayers(map, containerRef.current)
     map.on('click', (e: L.LeafletMouseEvent) => {
       const activeSiteId = placingSiteIdRef.current
       if (!activeSiteId) return

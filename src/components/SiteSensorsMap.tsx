@@ -1,11 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Sensor, Site } from '../types/sensor'
-import { DEVICE_ICON_URLS } from './DeviceIcon'
+import { DEVICE_ICON_URLS, DeviceIcon } from './DeviceIcon'
 import type { DeviceIconKind } from './DeviceIcon'
+import { StatusBadge } from './StatusBadge'
+import { BatteryIndicator } from './BatteryIndicator'
 import { getSensorIconKind, getSensorTypeLabel } from '../lib/sensorType'
-import { getEffectiveStatus } from '../lib/sensorStatus'
+import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
+import { getChannelDifferential } from '../lib/differential'
+import { addBaseLayers } from '../lib/mapLayers'
 
 interface Props {
   site: Site
@@ -59,14 +63,12 @@ function sensorSummary(sensor: Sensor): string {
 export function SiteSensorsMap({ site, sensors, allSensors, onOpenSensor }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
+  const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
     const map = L.map(containerRef.current, { zoomControl: true }).setView([46.8, -71.3], 15)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map)
+    addBaseLayers(map, containerRef.current)
     mapRef.current = map
     return () => {
       map.remove()
@@ -107,7 +109,7 @@ export function SiteSensorsMap({ site, sensors, allSensors, onOpenSensor }: Prop
         `<strong>${sensor.name}</strong><br/>${getSensorTypeLabel(sensor)}<br/>${sensorSummary(sensor)}`,
         { direction: 'top' }
       )
-      marker.on('click', () => onOpenSensor(sensor.id))
+      marker.on('click', () => setSelectedSensorId(sensor.id))
       markers.push(marker)
     })
 
@@ -118,20 +120,80 @@ export function SiteSensorsMap({ site, sensors, allSensors, onOpenSensor }: Prop
     return () => {
       markers.forEach((m) => m.remove())
     }
-  }, [site, sensors, allSensors, onOpenSensor])
+  }, [site, sensors, allSensors])
 
   const missingCount = sensors.filter((s) => !(s.latitude && s.longitude)).length
+  const selectedSensor = sensors.find((s) => s.id === selectedSensorId) ?? null
 
   return (
     <div className="flex flex-col gap-2">
       <div className="rounded-lg border border-line overflow-hidden">
         <div ref={containerRef} className="smartrek-map" style={{ height: '60vh', minHeight: 360, width: '100%' }} />
       </div>
+
       {missingCount > 0 && (
         <p className="text-xs text-muted italic">
           {missingCount} capteur{missingCount !== 1 ? 's' : ''} sans coordonnées GPS individuelles, non affiché
           {missingCount !== 1 ? 's' : ''} sur la carte.
         </p>
+      )}
+
+      {/* Résumé du capteur cliqué — apparaît sous la carte, ne la recouvre pas */}
+      {selectedSensor && (
+        <div className="rounded-lg border border-sap bg-panel p-3 flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <DeviceIcon kind={getSensorIconKind(selectedSensor)} size={20} color="var(--color-sap)" />
+              <h4 className="font-display font-semibold text-sap truncate">{selectedSensor.name}</h4>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <StatusBadge status={getEffectiveStatus(selectedSensor, allSensors)} />
+              <button
+                onClick={() => setSelectedSensorId(null)}
+                className="text-muted hover:text-text text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {selectedSensor.batteryPercent !== undefined && <BatteryIndicator percent={selectedSensor.batteryPercent} />}
+            {selectedSensor.channels
+              .filter((c) => c.kind !== 'temperature')
+              .map((c) => {
+                const alarming = isChannelAlarming(c)
+                const diff = getChannelDifferential(c, allSensors)
+                return (
+                  <span key={c.id} className={`font-mono ${alarming ? 'text-danger' : ''}`}>
+                    {c.label}: {c.currentValue}
+                    {c.unit}
+                    {diff !== undefined && (
+                      <span className="text-muted text-xs">
+                        {' '}
+                        ({diff > 0 ? '+' : ''}
+                        {diff})
+                      </span>
+                    )}
+                  </span>
+                )
+              })}
+            {selectedSensor.channels.find((c) => c.kind === 'temperature') && (
+              <span className="font-mono">
+                {selectedSensor.channels.find((c) => c.kind === 'temperature')!.currentValue}°C
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-muted">{getSensorTypeLabel(selectedSensor)}</p>
+
+          <button
+            onClick={() => onOpenSensor(selectedSensor.id)}
+            className="self-start text-xs font-mono text-sap hover:underline"
+          >
+            Voir le détail complet →
+          </button>
+        </div>
       )}
     </div>
   )

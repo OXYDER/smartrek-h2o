@@ -3,6 +3,7 @@ import type { Sensor, SensorStatus, Site } from '../types/sensor'
 import { smartrekClient } from '../api/client'
 import { Sidebar } from '../components/Sidebar'
 import { SensorCard } from '../components/SensorCard'
+import { SensorTable } from '../components/SensorTable'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
@@ -17,6 +18,8 @@ type SortOption =
   | 'temp-desc'
   | 'vacuum-asc'
   | 'vacuum-desc'
+  | 'battery-asc'
+  | 'battery-desc'
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'default', label: 'Trier par' },
@@ -26,6 +29,8 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'temp-desc', label: 'Température Descendant' },
   { value: 'vacuum-asc', label: 'Vide inHg Ascendant' },
   { value: 'vacuum-desc', label: 'Vide inHg Descendant' },
+  { value: 'battery-asc', label: 'Batterie Ascendant' },
+  { value: 'battery-desc', label: 'Batterie Descendant' },
 ]
 
 const FILTER_OPTIONS: { value: SensorStatus | 'all'; label: string }[] = [
@@ -42,6 +47,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SensorStatus | 'all'>('all')
   const [sortBy, setSortBy] = useState<SortOption>('default')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
   const [openSensorId, setOpenSensorId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -72,6 +79,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
       if (activeSiteId && s.siteId !== activeSiteId) return false
       if (activeCategory && !sensorMatchesCategory(s, activeCategory)) return false
       if (statusFilter !== 'all' && getSensorStatus(s) !== statusFilter) return false
+      if (searchQuery.trim() && !s.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false
       return true
     })
 
@@ -105,12 +113,21 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           if (bv === undefined) return -1
           return sortBy === 'vacuum-asc' ? av - bv : bv - av
         }
+        case 'battery-asc':
+        case 'battery-desc': {
+          const av = a.batteryPercent
+          const bv = b.batteryPercent
+          if (av === undefined && bv === undefined) return 0
+          if (av === undefined) return 1
+          if (bv === undefined) return -1
+          return sortBy === 'battery-asc' ? av - bv : bv - av
+        }
         default:
           return 0
       }
     })
     return sorted
-  }, [sensors, activeSiteId, activeCategory, statusFilter, sortBy])
+  }, [sensors, activeSiteId, activeCategory, statusFilter, sortBy, searchQuery])
 
   const openSensor = sensors.find((s) => s.id === openSensorId) ?? null
 
@@ -208,7 +225,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        <div className="px-3 sm:px-6 py-3 border-b border-line flex gap-2">
+        <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filtrer par nom…"
+            className="text-xs font-mono bg-panel border border-line rounded-full px-3 py-1.5 outline-none focus:border-sap w-40 sm:w-56"
+          />
           <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
           <Dropdown
             label="Filtrer"
@@ -216,6 +239,24 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             value={statusFilter}
             onChange={(v) => setStatusFilter(v as SensorStatus | 'all')}
           />
+          <div className="ml-auto flex gap-1 shrink-0">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                viewMode === 'table' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+              }`}
+            >
+              ☰ Tableau
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                viewMode === 'grid' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+              }`}
+            >
+              ▦ Grille
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
@@ -226,6 +267,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               <p className="font-display text-lg text-muted">Aucun capteur ici.</p>
               <p className="text-sm text-muted mt-1">Ajuste les filtres ou ajoute un nouveau capteur.</p>
             </div>
+          ) : viewMode === 'table' ? (
+            <SensorTable
+              sensors={filtered}
+              onOpen={setOpenSensorId}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+            />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filtered.map((sensor) => (

@@ -17,6 +17,14 @@ export interface ThresholdRule {
   enabled: boolean
 }
 
+/** Configuration du différentiel pour UN port précis — capteur ET port de
+ * référence choisis librement (pas forcément le même numéro de port). */
+export interface PortDifferentialConfig {
+  referenceSensorId: string
+  referencePortId: string // id du SensorChannel de référence
+  threshold?: ThresholdRule
+}
+
 /** Un canal de lecture individuel sur un nœud capteur (ex. un des 3 canaux
  * de vide + le canal de température d'un capteur physique Smartrek). */
 export interface SensorChannel {
@@ -27,6 +35,7 @@ export interface SensorChannel {
   currentValue: number
   history: { t: string; v: number }[]
   thresholds: ThresholdRule[]
+  differential?: PortDifferentialConfig
 }
 
 export interface NotificationChannel {
@@ -57,10 +66,6 @@ export interface Sensor {
   longitude?: number
   batteryPercent?: number
   channels: SensorChannel[]
-  /** Capteur de vide de référence (ex. celui à la station) pour calculer
-   * un différentiel de vide et alarmer si l'écart devient trop grand. */
-  referenceSensorId?: string
-  differentialThreshold?: ThresholdRule
   notificationChannels: NotificationChannel[]
   notes?: string
 }

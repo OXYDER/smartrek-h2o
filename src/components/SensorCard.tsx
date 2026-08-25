@@ -4,7 +4,7 @@ import { BatteryIndicator } from './BatteryIndicator'
 import { DeviceIcon } from './DeviceIcon'
 import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorTypeLabel, getSensorIconKind } from '../lib/sensorType'
-import { getPortDifferential } from '../lib/differential'
+import { getChannelDifferential } from '../lib/differential'
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('fr-CA', {
@@ -66,7 +66,7 @@ export function SensorCard({
           {otherChannels.map((c) => {
             const alarming = isChannelAlarming(c)
             const portNumber = c.label.match(/\d+/)?.[0] ?? '•'
-            const diff = c.kind === 'vacuum' ? getPortDifferential(sensor, c, allSensors) : undefined
+            const diff = c.kind === 'vacuum' ? getChannelDifferential(c, allSensors) : undefined
             return (
               <div key={c.id} className="flex items-baseline gap-1.5 min-w-0">
                 <span

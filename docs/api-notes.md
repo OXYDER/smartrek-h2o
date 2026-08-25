@@ -272,20 +272,19 @@ actifs** plutôt que par position fixe — robuste peu importe l'arrangement
 réel, y compris pour les appareils à plus de 3 ports (ex. `Vacuum
 Cabane`, 5 ports actifs).
 
-## Fonctionnalité locale — différentiel de vide entre capteurs
+## Fonctionnalité locale — différentiel de vide, par port
 
-Ajoutée côté app (pas dérivée de l'API Smartrek — équivalent local à la
-colonne « Différentiel relâcheur » vue dans un autre tableau de bord
-Smartrek de référence). Chaque capteur de vide peut désigner un autre
-capteur de vide comme référence (typiquement celui à la station) ;
-l'app compare **port par port** (même numéro de port des deux côtés,
-pas une moyenne) et affiche l'écart entre parenthèses à côté de chaque
-valeur — sur les cartes, le tableau, et le panneau de détail. Alarme
-configurable (min/max) sur l'écart de n'importe quel port. Implémenté
-dans `src/lib/differential.ts`, champs `referenceSensorId` /
-`differentialThreshold` sur `Sensor`. Stocké localement pour l'instant
-(comme les seuils de canaux) — pas d'endpoint d'écriture Smartrek connu
-pour ça.
+Configurable individuellement pour **chaque port de chaque capteur** —
+pas un seul réglage par capteur. Sur chaque port de vide dans le panneau
+de détail, un lien « Différentiel » se déplie et permet de choisir
+librement : un capteur de référence, PUIS un port précis sur ce capteur
+(pas forcément le même numéro de port des deux côtés), PUIS une alarme
+min/max sur l'écart. L'écart s'affiche entre parenthèses à côté de la
+valeur du port sur les cartes, le tableau, et le détail. Implémenté dans
+`src/lib/differential.ts` ; la config vit sur le `SensorChannel`
+lui-même (`differential: PortDifferentialConfig`), pas sur le `Sensor`
+— chaque port est indépendant. Stocké localement (comme les seuils) —
+pas d'endpoint d'écriture Smartrek connu pour ça.
 
 ## Fonctionnalité locale — carte des passerelles et des capteurs
 

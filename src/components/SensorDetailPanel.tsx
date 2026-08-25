@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { NotificationChannel, Sensor, ThresholdRule } from '../types/sensor'
+import type { NotificationChannel, PortDifferentialConfig, Sensor, SensorChannel, ThresholdRule } from '../types/sensor'
 import { CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { BatteryIndicator } from './BatteryIndicator'
@@ -8,7 +8,7 @@ import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
 import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorIconKind } from '../lib/sensorType'
-import { getPortDifferential, isDifferentialAlarming } from '../lib/differential'
+import { getChannelDifferential, isChannelDifferentialAlarming } from '../lib/differential'
 
 interface Props {
   sensor: Sensor
@@ -26,32 +26,15 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
   const [name, setName] = useState(sensor.name)
   const [notes, setNotes] = useState(sensor.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [expandedDiffChannelId, setExpandedDiffChannelId] = useState<string | null>(null)
 
   const status = getEffectiveStatus(sensor, allSensors)
   const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
-  const isVacuumSensor = sensor.channels.some((c) => c.kind === 'vacuum')
-  const referenceCandidates = allSensors.filter(
+
+  // Capteurs candidats comme référence — n'importe quel autre capteur ayant au moins un canal de vide.
+  const referenceSensorCandidates = allSensors.filter(
     (s) => s.id !== sensor.id && s.channels.some((c) => c.kind === 'vacuum')
   )
-  const referenceSensor = allSensors.find((s) => s.id === sensor.referenceSensorId)
-  const differentialAlarming = isDifferentialAlarming(sensor, allSensors)
-
-  async function setReferenceSensor(referenceSensorId: string) {
-    const updated = await smartrekClient.updateSensor(sensor.id, {
-      referenceSensorId: referenceSensorId || undefined,
-    })
-    if (updated) onChange(updated)
-  }
-
-  async function patchDifferentialThreshold(rule: ThresholdRule) {
-    const updated = await smartrekClient.updateSensor(sensor.id, { differentialThreshold: rule })
-    if (updated) onChange(updated)
-  }
-
-  async function clearDifferentialThreshold() {
-    const updated = await smartrekClient.updateSensor(sensor.id, { differentialThreshold: undefined })
-    if (updated) onChange(updated)
-  }
 
   async function saveName() {
     if (name === sensor.name) return
@@ -78,6 +61,16 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
 
   async function removeThreshold(channelId: string, ruleId: string) {
     const updated = await smartrekClient.deleteThreshold(sensor.id, channelId, ruleId)
+    if (updated) onChange(updated)
+  }
+
+  // Le différentiel vit sur le canal lui-même — on patche le tableau
+  // `channels` en entier via updateSensor (pas d'endpoint dédié par canal).
+  async function patchChannelDifferential(channelId: string, config: PortDifferentialConfig | undefined) {
+    const newChannels: SensorChannel[] = sensor.channels.map((c) =>
+      c.id === channelId ? { ...c, differential: config } : c
+    )
+    const updated = await smartrekClient.updateSensor(sensor.id, { channels: newChannels })
     if (updated) onChange(updated)
   }
 
@@ -159,210 +152,262 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
             {sensor.channels
               .filter((c) => c.kind !== 'temperature')
               .map((channel) => {
-              const alarming = isChannelAlarming(channel)
-              const diff = channel.kind === 'vacuum' ? getPortDifferential(sensor, channel, allSensors) : undefined
-              return (
-                <div key={channel.id} className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border border-line text-muted">
-                        {CHANNEL_KIND_ABBR[channel.kind]}
-                      </span>
-                      <span className="text-sm font-medium">{channel.label}</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className={`font-mono text-xl tabular-nums ${alarming ? 'text-danger' : ''}`}>
-                        {channel.currentValue}
-                      </span>
-                      <span className="font-mono text-xs text-muted">{channel.unit}</span>
-                      {diff !== undefined && (
-                        <span className="font-mono text-xs text-muted">
-                          ({diff > 0 ? '+' : ''}
-                          {diff})
+                const alarming = isChannelAlarming(channel)
+                const diff = getChannelDifferential(channel, allSensors)
+                const diffAlarming = isChannelDifferentialAlarming(channel, allSensors)
+                const diffExpanded = expandedDiffChannelId === channel.id
+                const refSensor = channel.differential
+                  ? allSensors.find((s) => s.id === channel.differential!.referenceSensorId)
+                  : undefined
+                const refPortCandidates = refSensor ? refSensor.channels.filter((c) => c.kind === 'vacuum') : []
+
+                return (
+                  <div key={channel.id} className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="font-mono text-[10px] w-5 h-5 shrink-0 flex items-center justify-center rounded-full border border-line text-muted">
+                          {CHANNEL_KIND_ABBR[channel.kind]}
                         </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <Sparkline
-                    data={channel.history}
-                    color={alarming ? 'var(--color-danger)' : 'var(--color-sap)'}
-                    width={440}
-                    height={36}
-                  />
-
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-muted uppercase">Seuils</span>
-                      <button
-                        onClick={() => addThreshold(channel.id, channel.currentValue)}
-                        className="text-xs font-mono text-sap hover:underline"
-                      >
-                        + Ajouter
-                      </button>
-                    </div>
-                    {channel.thresholds.length === 0 && (
-                      <p className="text-xs text-muted italic">Aucun seuil configuré.</p>
-                    )}
-                    {channel.thresholds.map((t) => (
-                      <div key={t.id} className="flex items-center gap-2 text-xs">
-                        <input
-                          value={t.label}
-                          onChange={(e) => patchThreshold(channel.id, { ...t, label: e.target.value })}
-                          className="flex-1 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
-                        />
-                        <label className="flex items-center gap-1 font-mono text-muted">
-                          Min
-                          <input
-                            type="number"
-                            value={t.min ?? ''}
-                            onChange={(e) =>
-                              patchThreshold(channel.id, {
-                                ...t,
-                                min: e.target.value === '' ? undefined : Number(e.target.value),
-                              })
-                            }
-                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                          />
-                        </label>
-                        <label className="flex items-center gap-1 font-mono text-muted">
-                          Max
-                          <input
-                            type="number"
-                            value={t.max ?? ''}
-                            onChange={(e) =>
-                              patchThreshold(channel.id, {
-                                ...t,
-                                max: e.target.value === '' ? undefined : Number(e.target.value),
-                              })
-                            }
-                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                          />
-                        </label>
-                        <input
-                          type="checkbox"
-                          checked={t.enabled}
-                          onChange={(e) => patchThreshold(channel.id, { ...t, enabled: e.target.checked })}
-                          className="accent-sap"
-                        />
-                        <button
-                          onClick={() => removeThreshold(channel.id, t.id)}
-                          className="text-muted hover:text-danger px-1"
-                        >
-                          ✕
-                        </button>
+                        <span className="text-sm font-medium">{channel.label}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </section>
+                      <div className="flex items-baseline gap-1">
+                        <span className={`font-mono text-xl tabular-nums ${alarming || diffAlarming ? 'text-danger' : ''}`}>
+                          {channel.currentValue}
+                        </span>
+                        <span className="font-mono text-xs text-muted">{channel.unit}</span>
+                        {diff !== undefined && (
+                          <span className={`font-mono text-xs ${diffAlarming ? 'text-danger' : 'text-muted'}`}>
+                            ({diff > 0 ? '+' : ''}
+                            {diff})
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-          {/* Différentiel de vide vs capteur de référence */}
-          {isVacuumSensor && (
-            <section className="flex flex-col gap-2">
-              <h4 className="font-display text-sm tracking-wide text-muted uppercase">
-                Différentiel vs capteur de référence
-              </h4>
+                    <Sparkline
+                      data={channel.history}
+                      color={alarming || diffAlarming ? 'var(--color-danger)' : 'var(--color-sap)'}
+                      width={440}
+                      height={36}
+                    />
 
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-muted text-xs font-mono uppercase">Capteur de référence (ex. station)</span>
-                <select
-                  value={sensor.referenceSensorId ?? ''}
-                  onChange={(e) => setReferenceSensor(e.target.value)}
-                  className="bg-panel-raised border border-line rounded px-2 py-1.5 text-sm outline-none focus:border-sap"
-                >
-                  <option value="">Aucun</option>
-                  {referenceCandidates.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {sensor.referenceSensorId && (
-                <div className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
-                  <p className={`text-sm ${differentialAlarming ? 'text-danger' : 'text-muted'}`}>
-                    {differentialAlarming && '⚠ '}
-                    {referenceSensor
-                      ? `Écart affiché entre parenthèses sur chaque port ci-dessus, vs ${referenceSensor.name}.`
-                      : 'Référence introuvable.'}
-                  </p>
-
-                  <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-muted uppercase">Alarme sur l'écart</span>
-                      {!sensor.differentialThreshold && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono text-muted uppercase">Seuils</span>
                         <button
-                          onClick={() =>
-                            patchDifferentialThreshold({ id: uid(), label: 'Écart trop grand', max: 5, enabled: true })
-                          }
+                          onClick={() => addThreshold(channel.id, channel.currentValue)}
                           className="text-xs font-mono text-sap hover:underline"
                         >
-                          + Configurer
-                        </button>
-                      )}
-                    </div>
-                    {sensor.differentialThreshold && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <input
-                          value={sensor.differentialThreshold.label}
-                          onChange={(e) =>
-                            patchDifferentialThreshold({ ...sensor.differentialThreshold!, label: e.target.value })
-                          }
-                          className="flex-1 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
-                        />
-                        <label className="flex items-center gap-1 font-mono text-muted">
-                          Min
-                          <input
-                            type="number"
-                            value={sensor.differentialThreshold.min ?? ''}
-                            onChange={(e) =>
-                              patchDifferentialThreshold({
-                                ...sensor.differentialThreshold!,
-                                min: e.target.value === '' ? undefined : Number(e.target.value),
-                              })
-                            }
-                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                          />
-                        </label>
-                        <label className="flex items-center gap-1 font-mono text-muted">
-                          Max
-                          <input
-                            type="number"
-                            value={sensor.differentialThreshold.max ?? ''}
-                            onChange={(e) =>
-                              patchDifferentialThreshold({
-                                ...sensor.differentialThreshold!,
-                                max: e.target.value === '' ? undefined : Number(e.target.value),
-                              })
-                            }
-                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                          />
-                        </label>
-                        <input
-                          type="checkbox"
-                          checked={sensor.differentialThreshold.enabled}
-                          onChange={(e) =>
-                            patchDifferentialThreshold({ ...sensor.differentialThreshold!, enabled: e.target.checked })
-                          }
-                          className="accent-sap"
-                        />
-                        <button onClick={clearDifferentialThreshold} className="text-muted hover:text-danger px-1">
-                          ✕
+                          + Ajouter
                         </button>
                       </div>
-                    )}
-                    {!sensor.differentialThreshold && (
-                      <p className="text-xs text-muted italic">Aucune alarme configurée sur cet écart.</p>
+                      {channel.thresholds.length === 0 && (
+                        <p className="text-xs text-muted italic">Aucun seuil configuré.</p>
+                      )}
+                      {channel.thresholds.map((t) => (
+                        <div key={t.id} className="flex items-center gap-2 text-xs">
+                          <input
+                            value={t.label}
+                            onChange={(e) => patchThreshold(channel.id, { ...t, label: e.target.value })}
+                            className="flex-1 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
+                          />
+                          <label className="flex items-center gap-1 font-mono text-muted">
+                            Min
+                            <input
+                              type="number"
+                              value={t.min ?? ''}
+                              onChange={(e) =>
+                                patchThreshold(channel.id, {
+                                  ...t,
+                                  min: e.target.value === '' ? undefined : Number(e.target.value),
+                                })
+                              }
+                              className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1 font-mono text-muted">
+                            Max
+                            <input
+                              type="number"
+                              value={t.max ?? ''}
+                              onChange={(e) =>
+                                patchThreshold(channel.id, {
+                                  ...t,
+                                  max: e.target.value === '' ? undefined : Number(e.target.value),
+                                })
+                              }
+                              className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                            />
+                          </label>
+                          <input
+                            type="checkbox"
+                            checked={t.enabled}
+                            onChange={(e) => patchThreshold(channel.id, { ...t, enabled: e.target.checked })}
+                            className="accent-sap"
+                          />
+                          <button
+                            onClick={() => removeThreshold(channel.id, t.id)}
+                            className="text-muted hover:text-danger px-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Différentiel — seulement pertinent pour les canaux de vide */}
+                    {channel.kind === 'vacuum' && (
+                      <div className="flex flex-col gap-1.5 pt-1.5 border-t border-line">
+                        <button
+                          onClick={() => setExpandedDiffChannelId(diffExpanded ? null : channel.id)}
+                          className="text-xs font-mono text-sap hover:underline text-left flex items-center gap-1"
+                        >
+                          {diffExpanded ? '▾' : '▸'} Différentiel
+                          {channel.differential && refSensor && (
+                            <span className="text-muted">
+                              (vs {refSensor.name} ·{' '}
+                              {refPortCandidates.find((c) => c.id === channel.differential!.referencePortId)?.label ??
+                                '?'}
+                              )
+                            </span>
+                          )}
+                        </button>
+
+                        {diffExpanded && (
+                          <div className="flex flex-col gap-2 pl-1">
+                            <label className="flex flex-col gap-1 text-xs">
+                              <span className="text-muted font-mono uppercase">Capteur de référence</span>
+                              <select
+                                value={channel.differential?.referenceSensorId ?? ''}
+                                onChange={(e) => {
+                                  if (!e.target.value) {
+                                    patchChannelDifferential(channel.id, undefined)
+                                    return
+                                  }
+                                  patchChannelDifferential(channel.id, {
+                                    referenceSensorId: e.target.value,
+                                    referencePortId: '',
+                                  })
+                                }}
+                                className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
+                              >
+                                <option value="">Aucun</option>
+                                {referenceSensorCandidates.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            {channel.differential?.referenceSensorId && (
+                              <label className="flex flex-col gap-1 text-xs">
+                                <span className="text-muted font-mono uppercase">Port de référence</span>
+                                <select
+                                  value={channel.differential.referencePortId}
+                                  onChange={(e) =>
+                                    patchChannelDifferential(channel.id, {
+                                      ...channel.differential!,
+                                      referencePortId: e.target.value,
+                                    })
+                                  }
+                                  className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
+                                >
+                                  <option value="">Choisir…</option>
+                                  {refPortCandidates.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.label} ({c.currentValue} {c.unit})
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+
+                            {channel.differential?.referencePortId && (
+                              <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
+                                <span className="text-xs font-mono text-muted uppercase">Alarme sur l'écart</span>
+                                {channel.differential.threshold ? (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <label className="flex items-center gap-1 font-mono text-muted">
+                                      Min
+                                      <input
+                                        type="number"
+                                        value={channel.differential.threshold.min ?? ''}
+                                        onChange={(e) =>
+                                          patchChannelDifferential(channel.id, {
+                                            ...channel.differential!,
+                                            threshold: {
+                                              ...channel.differential!.threshold!,
+                                              min: e.target.value === '' ? undefined : Number(e.target.value),
+                                            },
+                                          })
+                                        }
+                                        className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                                      />
+                                    </label>
+                                    <label className="flex items-center gap-1 font-mono text-muted">
+                                      Max
+                                      <input
+                                        type="number"
+                                        value={channel.differential.threshold.max ?? ''}
+                                        onChange={(e) =>
+                                          patchChannelDifferential(channel.id, {
+                                            ...channel.differential!,
+                                            threshold: {
+                                              ...channel.differential!.threshold!,
+                                              max: e.target.value === '' ? undefined : Number(e.target.value),
+                                            },
+                                          })
+                                        }
+                                        className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                                      />
+                                    </label>
+                                    <input
+                                      type="checkbox"
+                                      checked={channel.differential.threshold.enabled}
+                                      onChange={(e) =>
+                                        patchChannelDifferential(channel.id, {
+                                          ...channel.differential!,
+                                          threshold: { ...channel.differential!.threshold!, enabled: e.target.checked },
+                                        })
+                                      }
+                                      className="accent-sap"
+                                    />
+                                    <button
+                                      onClick={() =>
+                                        patchChannelDifferential(channel.id, {
+                                          ...channel.differential!,
+                                          threshold: undefined,
+                                        })
+                                      }
+                                      className="text-muted hover:text-danger px-1"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      patchChannelDifferential(channel.id, {
+                                        ...channel.differential!,
+                                        threshold: { id: uid(), label: 'Écart trop grand', max: 5, enabled: true },
+                                      })
+                                    }
+                                    className="text-xs font-mono text-sap hover:underline text-left"
+                                  >
+                                    + Configurer une alarme
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
-            </section>
-          )}
+                )
+              })}
+          </section>
 
           {/* Notifications */}
           <section className="flex flex-col gap-2">

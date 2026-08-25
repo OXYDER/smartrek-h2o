@@ -21,6 +21,17 @@ export function getSensorStatus(sensor: Pick<Sensor, 'channels' | 'lastReadingAt
   return 'online'
 }
 
+/** Un site (passerelle) est "en ligne" si au moins un de ses capteurs a
+ * transmis récemment. Pas de statut propre côté API pour la passerelle
+ * elle-même — c'est une approximation raisonnable basée sur ses capteurs. */
+export function getSiteStatus(siteId: string, sensors: Sensor[]): 'online' | 'offline' {
+  const now = Date.now()
+  const hasFreshSensor = sensors.some(
+    (s) => s.siteId === siteId && now - new Date(s.lastReadingAt).getTime() <= STALE_AFTER_MS
+  )
+  return hasFreshSensor ? 'online' : 'offline'
+}
+
 /** Comme getSensorStatus, mais inclut aussi l'alarme de différentiel de
  * vide (nécessite la liste complète des capteurs pour retrouver la
  * référence). Un capteur hors ligne reste hors ligne — pas la peine de

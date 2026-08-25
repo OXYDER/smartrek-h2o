@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Sensor, Site } from '../types/sensor'
 import { SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES, sensorMatchesCategory } from '../lib/sensorCategories'
 import { DeviceIcon, type DeviceIconKind } from './DeviceIcon'
+import { getSiteStatus } from '../lib/sensorStatus'
 
 const CATEGORY_ICON: Record<string, DeviceIconKind> = {
   vacuum: 'vacuum',
@@ -184,6 +185,15 @@ export function Sidebar({
                     <div className="flex items-center justify-between gap-1">
                       <div className="min-w-0 flex items-center gap-1.5">
                         <span className="text-xs text-muted shrink-0">{isExpanded ? '▾' : '▸'}</span>
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{
+                            backgroundColor:
+                              getSiteStatus(site.id, sensors) === 'online' ? 'var(--color-lime)' : 'var(--color-danger)',
+                            boxShadow: `0 0 4px 0.5px ${getSiteStatus(site.id, sensors) === 'online' ? 'rgba(140,224,76,0.7)' : 'rgba(225,69,61,0.7)'}`,
+                          }}
+                          title={getSiteStatus(site.id, sensors) === 'online' ? 'En ligne' : 'Hors ligne'}
+                        />
                         <div className="min-w-0">
                           <div className="text-sm truncate">{site.name}</div>
                           <div className="text-xs font-mono opacity-70">Passerelle · {site.location}</div>

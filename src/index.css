@@ -72,6 +72,16 @@ body {
   .sap-line, .node-pulse { animation: none; }
 }
 
+/* Confine les z-index internes de Leaflet (panneaux, contrôles montent
+   jusqu'à ~1000) dans leur propre contexte d'empilement — sans ça, ils
+   peuvent passer par-dessus les menus déroulants, la sidebar, les
+   modales de l'app qui utilisent des z-index bien plus bas (20-50). */
+.smartrek-map {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+}
+
 /* Habillage sombre pour la carte Leaflet — cohérent avec le thème.
    Le filtre n'inverse que les tuiles "Rues" (via .map-inverted, basculé
    en JS selon la couche active) — inverser une image satellite ou un

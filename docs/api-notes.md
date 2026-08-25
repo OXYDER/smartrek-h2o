@@ -324,12 +324,29 @@ une image satellite donnerait n'importe quoi). Logique partagée dans
 `src/lib/mapLayers.ts`. Capteurs sans coordonnées propres : simplement
 absents de la carte par site, avec un compte affiché en dessous.
 
-Clic sur un pin de capteur (carte par site) : le **panneau de détail
-complet** (canaux, alarmes, différentiel, notes, suppression — tout,
-pas un résumé) apparaît **sous la carte, dans le flux normal de la
-page** — pas en fenêtre modale par-dessus tout. `SensorDetailPanel`
-accepte maintenant une prop `inline` qui retire le voile/overlay plein
-écran pour ce cas précis.
+Clic sur un pin de capteur (carte par site) : le panneau de détail
+complet apparaît **flottant à gauche, par-dessus la carte** (`position:
+absolute`, `z-index: 20`), pas en dessous ni en modale plein écran.
+`SensorDetailPanel` accepte une prop `inline` qui retire le voile/
+overlay plein écran pour ce cas précis.
+
+**Isolation du z-index** : Leaflet utilise ses propres z-index internes
+(panneaux/contrôles jusqu'à ~1000) qui pouvaient passer par-dessus les
+menus déroulants, la sidebar et les modales de l'app (z-index 20-50).
+Corrigé avec `isolation: isolate` sur `.smartrek-map` — confine tout ce
+qui est interne à Leaflet dans son propre contexte d'empilement, sans
+jamais interférer avec le reste de l'UI.
+
+Les menus de tri/filtre (recherche, Trier par, Filtrer) sont masqués en
+mode Carte (globale ou par site) — pas pertinents pour naviguer une
+carte. Les boutons Tableau/Grille/Carte restent toujours visibles pour
+pouvoir revenir en arrière.
+
+**Statut des passerelles** : chaque site dans la sidebar affiche un
+point vert (en ligne) ou rouge (hors ligne) à côté de son nom — pas de
+statut propre côté API pour la passerelle elle-même, donc calculé comme
+« au moins un de ses capteurs a transmis dans les 10 dernières minutes »
+(`getSiteStatus()` dans `sensorStatus.ts`).
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)

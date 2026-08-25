@@ -277,49 +277,51 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {!(viewMode === 'map' && !activeSiteId) && (
-          <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filtrer par nom…"
-              className="text-xs font-mono bg-panel border border-line rounded-full px-3 py-1.5 outline-none focus:border-sap w-40 sm:w-56"
-            />
-            <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
-            <Dropdown
-              label="Filtrer"
-              options={FILTER_OPTIONS}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v as SensorStatus | 'all')}
-            />
-            <div className="ml-auto flex gap-1 shrink-0">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
-                  viewMode === 'table' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
-                }`}
-              >
-                ☰ Tableau
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
-                  viewMode === 'grid' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
-                }`}
-              >
-                ▦ Grille
-              </button>
-              <button
-                onClick={() => setViewMode('map')}
-                className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
-                  viewMode === 'map' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
-                }`}
-              >
-                🗺 Carte
-              </button>
-            </div>
+        <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
+          {viewMode !== 'map' && (
+            <>
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filtrer par nom…"
+                className="text-xs font-mono bg-panel border border-line rounded-full px-3 py-1.5 outline-none focus:border-sap w-40 sm:w-56"
+              />
+              <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
+              <Dropdown
+                label="Filtrer"
+                options={FILTER_OPTIONS}
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v as SensorStatus | 'all')}
+              />
+            </>
+          )}
+          <div className="ml-auto flex gap-1 shrink-0">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                viewMode === 'table' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+              }`}
+            >
+              ☰ Tableau
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                viewMode === 'grid' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+              }`}
+            >
+              ▦ Grille
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                viewMode === 'map' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+              }`}
+            >
+              🗺 Carte
+            </button>
           </div>
-        )}
+        </div>
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
           {viewMode === 'map' && !activeSiteId ? (

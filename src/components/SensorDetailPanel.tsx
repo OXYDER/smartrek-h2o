@@ -88,7 +88,7 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
     <div
       className={
         inline
-          ? 'relative w-full bg-panel border border-line rounded-lg flex flex-col overflow-y-auto max-h-[70vh]'
+          ? 'relative w-full h-full bg-panel border-r border-line flex flex-col overflow-y-auto'
           : 'relative w-full max-w-lg h-full bg-panel border-l border-line flex flex-col overflow-y-auto'
       }
     >

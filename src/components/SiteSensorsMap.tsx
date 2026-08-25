@@ -126,8 +126,31 @@ export function SiteSensorsMap({ site, sensors, allSensors, onSensorChange, onSe
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="rounded-lg border border-line overflow-hidden">
-        <div ref={containerRef} className="smartrek-map" style={{ height: '60vh', minHeight: 360, width: '100%' }} />
+      <div
+        className="relative rounded-lg border border-line overflow-hidden"
+        style={{ height: '60vh', minHeight: 360 }}
+      >
+        <div ref={containerRef} className="smartrek-map" style={{ height: '100%', width: '100%' }} />
+
+        {/* Détail complet du capteur cliqué — flottant à gauche, par-dessus
+            la carte (z-index au-dessus des panneaux Leaflet, qui sont
+            confinés dans leur propre contexte d'empilement — voir
+            .smartrek-map dans index.css). */}
+        {selectedSensor && (
+          <div className="absolute inset-y-0 left-0 z-20 w-full sm:w-96 max-w-full overflow-y-auto shadow-[8px_0_24px_-4px_rgba(0,0,0,0.6)]">
+            <SensorDetailPanel
+              inline
+              sensor={selectedSensor}
+              allSensors={allSensors}
+              onClose={() => setSelectedSensorId(null)}
+              onChange={onSensorChange}
+              onDelete={(id) => {
+                onSensorDelete(id)
+                setSelectedSensorId(null)
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {missingCount > 0 && (
@@ -135,21 +158,6 @@ export function SiteSensorsMap({ site, sensors, allSensors, onSensorChange, onSe
           {missingCount} capteur{missingCount !== 1 ? 's' : ''} sans coordonnées GPS individuelles, non affiché
           {missingCount !== 1 ? 's' : ''} sur la carte.
         </p>
-      )}
-
-      {/* Détail complet du capteur cliqué — sous la carte, pas en modale par-dessus */}
-      {selectedSensor && (
-        <SensorDetailPanel
-          inline
-          sensor={selectedSensor}
-          allSensors={allSensors}
-          onClose={() => setSelectedSensorId(null)}
-          onChange={onSensorChange}
-          onDelete={(id) => {
-            onSensorDelete(id)
-            setSelectedSensorId(null)
-          }}
-        />
       )}
     </div>
   )

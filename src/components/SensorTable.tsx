@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import type { Sensor } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { DeviceIcon } from './DeviceIcon'
-import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
+import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorTypeLabel, getSensorIconKind } from '../lib/sensorType'
 import { getBatteryColor } from '../lib/battery'
 
@@ -25,6 +25,7 @@ type SortOption =
 
 interface Props {
   sensors: Sensor[]
+  allSensors: Sensor[]
   onOpen: (id: string) => void
   sortBy: SortOption
   onSortChange: (sort: SortOption) => void
@@ -67,7 +68,7 @@ function SortHeader({
   )
 }
 
-export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
+export function SensorTable({ sensors, allSensors, onOpen, sortBy, onSortChange }: Props) {
   return (
     <div className="rounded-lg border border-line overflow-hidden">
       <div className="overflow-x-auto">
@@ -120,7 +121,7 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
           </thead>
           <tbody>
             {sensors.map((sensor, i) => {
-              const status = getSensorStatus(sensor)
+              const status = getEffectiveStatus(sensor, allSensors)
               const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
               const vacuumChannels = sensor.channels.filter((c) => c.kind === 'vacuum')
               const statusColor =

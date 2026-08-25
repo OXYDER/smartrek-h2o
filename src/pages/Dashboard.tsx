@@ -7,7 +7,7 @@ import { SensorTable } from '../components/SensorTable'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
-import { getSensorStatus } from '../lib/sensorStatus'
+import { getEffectiveStatus } from '../lib/sensorStatus'
 import { getSensorTypeLabel } from '../lib/sensorType'
 import { sensorMatchesCategory, SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES } from '../lib/sensorCategories'
 
@@ -87,7 +87,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     const result = sensors.filter((s) => {
       if (activeSiteId && s.siteId !== activeSiteId) return false
       if (activeCategory && !sensorMatchesCategory(s, activeCategory)) return false
-      if (statusFilter !== 'all' && getSensorStatus(s) !== statusFilter) return false
+      if (statusFilter !== 'all' && getEffectiveStatus(s, sensors) !== statusFilter) return false
       if (searchQuery.trim() && !s.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false
       return true
     })
@@ -134,8 +134,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         }
         case 'status-asc':
         case 'status-desc': {
-          const av = STATUS_RANK[getSensorStatus(a)]
-          const bv = STATUS_RANK[getSensorStatus(b)]
+          const av = STATUS_RANK[getEffectiveStatus(a, sensors)]
+          const bv = STATUS_RANK[getEffectiveStatus(b, sensors)]
           return sortBy === 'status-asc' ? av - bv : bv - av
         }
         case 'type-asc':
@@ -175,7 +175,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     setOpenSensorId(null)
   }
 
-  const alarmCount = sensors.filter((s) => getSensorStatus(s) === 'alarm').length
+  const alarmCount = sensors.filter((s) => getEffectiveStatus(s, sensors) === 'alarm').length
 
   return (
     <div className="flex h-dvh bg-base text-text">
@@ -298,6 +298,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           ) : viewMode === 'table' ? (
             <SensorTable
               sensors={filtered}
+              allSensors={sensors}
               onOpen={setOpenSensorId}
               sortBy={sortBy}
               onSortChange={setSortBy}
@@ -305,7 +306,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filtered.map((sensor) => (
-                <SensorCard key={sensor.id} sensor={sensor} onOpen={() => setOpenSensorId(sensor.id)} />
+                <SensorCard key={sensor.id} sensor={sensor} allSensors={sensors} onOpen={() => setOpenSensorId(sensor.id)} />
               ))}
             </div>
           )}
@@ -315,6 +316,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
       {openSensor && (
         <SensorDetailPanel
           sensor={openSensor}
+          allSensors={sensors}
           onClose={() => setOpenSensorId(null)}
           onChange={updateSensorInList}
           onDelete={removeSensorFromList}

@@ -6,11 +6,13 @@ import { BatteryIndicator } from './BatteryIndicator'
 import { DeviceIcon } from './DeviceIcon'
 import { Sparkline } from './Sparkline'
 import { smartrekClient } from '../api/client'
-import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
+import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorIconKind } from '../lib/sensorType'
+import { getVacuumAverage, getDifferential, isDifferentialAlarming } from '../lib/differential'
 
 interface Props {
   sensor: Sensor
+  allSensors: Sensor[]
   onClose: () => void
   onChange: (sensor: Sensor) => void
   onDelete: (id: string) => void
@@ -20,13 +22,37 @@ function uid() {
   return Math.random().toString(36).slice(2, 9)
 }
 
-export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props) {
+export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDelete }: Props) {
   const [name, setName] = useState(sensor.name)
   const [notes, setNotes] = useState(sensor.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const status = getSensorStatus(sensor)
+  const status = getEffectiveStatus(sensor, allSensors)
   const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
+  const isVacuumSensor = sensor.channels.some((c) => c.kind === 'vacuum')
+  const referenceCandidates = allSensors.filter(
+    (s) => s.id !== sensor.id && s.channels.some((c) => c.kind === 'vacuum')
+  )
+  const referenceSensor = allSensors.find((s) => s.id === sensor.referenceSensorId)
+  const differential = getDifferential(sensor, allSensors)
+  const differentialAlarming = isDifferentialAlarming(sensor, allSensors)
+
+  async function setReferenceSensor(referenceSensorId: string) {
+    const updated = await smartrekClient.updateSensor(sensor.id, {
+      referenceSensorId: referenceSensorId || undefined,
+    })
+    if (updated) onChange(updated)
+  }
+
+  async function patchDifferentialThreshold(rule: ThresholdRule) {
+    const updated = await smartrekClient.updateSensor(sensor.id, { differentialThreshold: rule })
+    if (updated) onChange(updated)
+  }
+
+  async function clearDifferentialThreshold() {
+    const updated = await smartrekClient.updateSensor(sensor.id, { differentialThreshold: undefined })
+    if (updated) onChange(updated)
+  }
 
   async function saveName() {
     if (name === sensor.name) return
@@ -226,6 +252,129 @@ export function SensorDetailPanel({ sensor, onClose, onChange, onDelete }: Props
               )
             })}
           </section>
+
+          {/* Différentiel de vide vs capteur de référence */}
+          {isVacuumSensor && (
+            <section className="flex flex-col gap-2">
+              <h4 className="font-display text-sm tracking-wide text-muted uppercase">
+                Différentiel vs capteur de référence
+              </h4>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted text-xs font-mono uppercase">Capteur de référence (ex. station)</span>
+                <select
+                  value={sensor.referenceSensorId ?? ''}
+                  onChange={(e) => setReferenceSensor(e.target.value)}
+                  className="bg-panel-raised border border-line rounded px-2 py-1.5 text-sm outline-none focus:border-sap"
+                >
+                  <option value="">Aucun</option>
+                  {referenceCandidates.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {sensor.referenceSensorId && (
+                <div className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">
+                      {referenceSensor ? `Vs ${referenceSensor.name}` : 'Référence introuvable'}
+                    </span>
+                    {differential !== undefined && (
+                      <span className={`font-mono text-lg ${differentialAlarming ? 'text-danger' : ''}`}>
+                        {differential > 0 ? '+' : ''}
+                        {differential} inHg
+                      </span>
+                    )}
+                  </div>
+                  {differential === undefined && (
+                    <p className="text-xs text-muted italic">
+                      Différentiel indisponible (référence hors ligne ou sans lecture de vide).
+                    </p>
+                  )}
+                  {getVacuumAverage(sensor) !== undefined && (
+                    <p className="text-xs font-mono text-muted">
+                      Moyenne de ce capteur : {getVacuumAverage(sensor)} inHg
+                      {referenceSensor && getVacuumAverage(referenceSensor) !== undefined && (
+                        <> · Moyenne référence : {getVacuumAverage(referenceSensor)} inHg</>
+                      )}
+                    </p>
+                  )}
+
+                  <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-muted uppercase">Alarme sur l'écart</span>
+                      {!sensor.differentialThreshold && (
+                        <button
+                          onClick={() =>
+                            patchDifferentialThreshold({ id: uid(), label: 'Écart trop grand', max: 5, enabled: true })
+                          }
+                          className="text-xs font-mono text-sap hover:underline"
+                        >
+                          + Configurer
+                        </button>
+                      )}
+                    </div>
+                    {sensor.differentialThreshold && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <input
+                          value={sensor.differentialThreshold.label}
+                          onChange={(e) =>
+                            patchDifferentialThreshold({ ...sensor.differentialThreshold!, label: e.target.value })
+                          }
+                          className="flex-1 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
+                        />
+                        <label className="flex items-center gap-1 font-mono text-muted">
+                          Min
+                          <input
+                            type="number"
+                            value={sensor.differentialThreshold.min ?? ''}
+                            onChange={(e) =>
+                              patchDifferentialThreshold({
+                                ...sensor.differentialThreshold!,
+                                min: e.target.value === '' ? undefined : Number(e.target.value),
+                              })
+                            }
+                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                          />
+                        </label>
+                        <label className="flex items-center gap-1 font-mono text-muted">
+                          Max
+                          <input
+                            type="number"
+                            value={sensor.differentialThreshold.max ?? ''}
+                            onChange={(e) =>
+                              patchDifferentialThreshold({
+                                ...sensor.differentialThreshold!,
+                                max: e.target.value === '' ? undefined : Number(e.target.value),
+                              })
+                            }
+                            className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                          />
+                        </label>
+                        <input
+                          type="checkbox"
+                          checked={sensor.differentialThreshold.enabled}
+                          onChange={(e) =>
+                            patchDifferentialThreshold({ ...sensor.differentialThreshold!, enabled: e.target.checked })
+                          }
+                          className="accent-sap"
+                        />
+                        <button onClick={clearDifferentialThreshold} className="text-muted hover:text-danger px-1">
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    {!sensor.differentialThreshold && (
+                      <p className="text-xs text-muted italic">Aucune alarme configurée sur cet écart.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Notifications */}
           <section className="flex flex-col gap-2">

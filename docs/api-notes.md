@@ -272,6 +272,19 @@ actifs** plutôt que par position fixe — robuste peu importe l'arrangement
 réel, y compris pour les appareils à plus de 3 ports (ex. `Vacuum
 Cabane`, 5 ports actifs).
 
+## Fonctionnalité locale — différentiel de vide entre capteurs
+
+Ajoutée côté app (pas dérivée de l'API Smartrek — équivalent local à la
+colonne « Différentiel relâcheur » vue dans un autre tableau de bord
+Smartrek de référence). Chaque capteur de vide peut désigner un autre
+capteur de vide comme référence (typiquement celui à la station) ;
+l'app calcule l'écart entre la moyenne des ports actifs des deux
+capteurs et peut alarmer si l'écart dépasse un seuil configuré.
+Implémenté dans `src/lib/differential.ts`, champs `referenceSensorId` /
+`differentialThreshold` sur `Sensor`. Stocké localement pour l'instant
+(comme les seuils de canaux) — pas d'endpoint d'écriture Smartrek connu
+pour ça.
+
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
 - [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)

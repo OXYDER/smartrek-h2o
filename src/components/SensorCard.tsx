@@ -2,7 +2,7 @@ import type { Sensor } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { BatteryIndicator } from './BatteryIndicator'
 import { DeviceIcon } from './DeviceIcon'
-import { getSensorStatus, isChannelAlarming } from '../lib/sensorStatus'
+import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorTypeLabel, getSensorIconKind } from '../lib/sensorType'
 
 function formatDateTime(iso: string) {
@@ -21,8 +21,16 @@ const STATUS_BORDER: Record<string, string> = {
   warning: 'var(--color-syrup)',
 }
 
-export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => void }) {
-  const status = getSensorStatus(sensor)
+export function SensorCard({
+  sensor,
+  allSensors,
+  onOpen,
+}: {
+  sensor: Sensor
+  allSensors: Sensor[]
+  onOpen: () => void
+}) {
+  const status = getEffectiveStatus(sensor, allSensors)
   const hasAlarm = sensor.channels.some(isChannelAlarming)
   const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
   const otherChannels = sensor.channels.filter((c) => c.kind !== 'temperature')

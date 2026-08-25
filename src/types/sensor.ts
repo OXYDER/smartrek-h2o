@@ -55,6 +55,10 @@ export interface Sensor {
   deviceType?: number
   batteryPercent?: number
   channels: SensorChannel[]
+  /** Capteur de vide de référence (ex. celui à la station) pour calculer
+   * un différentiel de vide et alarmer si l'écart devient trop grand. */
+  referenceSensorId?: string
+  differentialThreshold?: ThresholdRule
   notificationChannels: NotificationChannel[]
   notes?: string
 }

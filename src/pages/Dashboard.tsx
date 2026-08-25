@@ -198,9 +198,14 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         onLogout={onLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        showingMap={viewMode === 'map' && activeSiteId === null}
+        viewMode={viewMode}
         onShowMap={() => {
           setActiveSiteId(null)
+          setActiveCategory(null)
+          setViewMode('map')
+        }}
+        onShowSiteMap={(siteId) => {
+          setActiveSiteId(siteId)
           setActiveCategory(null)
           setViewMode('map')
         }}

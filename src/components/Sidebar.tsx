@@ -22,8 +22,9 @@ interface Props {
   onLogout: () => void
   open: boolean
   onClose: () => void
-  showingMap: boolean
+  viewMode: 'grid' | 'table' | 'map'
   onShowMap: () => void
+  onShowSiteMap: (siteId: string) => void
 }
 
 function CategoryRow({
@@ -72,8 +73,9 @@ export function Sidebar({
   onLogout,
   open,
   onClose,
-  showingMap,
+  viewMode,
   onShowMap,
+  onShowSiteMap,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -135,10 +137,10 @@ export function Sidebar({
               onClose()
             }}
             className={`text-left text-sm px-3 py-2 rounded transition-colors flex items-center gap-2 ${
-              showingMap ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+              viewMode === 'map' && activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
             }`}
           >
-            <span className="text-sm">🗺</span> Carte
+            <span className="text-sm">🗺</span> Carte globale
           </button>
           <button
             onClick={() => {
@@ -147,7 +149,7 @@ export function Sidebar({
               onClose()
             }}
             className={`text-left text-sm px-3 py-2 rounded transition-colors ${
-              !showingMap && activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+              viewMode !== 'map' && activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
             }`}
           >
             Tous les sites
@@ -201,6 +203,17 @@ export function Sidebar({
 
                 {isExpanded && (
                   <div className="pl-2 flex flex-col gap-0.5 py-1">
+                    <button
+                      onClick={() => {
+                        onShowSiteMap(site.id)
+                        onClose()
+                      }}
+                      className={`flex items-center gap-1.5 text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                        viewMode === 'map' && activeSiteId === site.id ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+                      }`}
+                    >
+                      <span className="text-xs">🗺</span> Carte du site
+                    </button>
                     <p className="px-3 py-1 text-[10px] font-mono uppercase tracking-wide text-muted">Capteurs</p>
                     <CategoryRow
                       label="Tous les capteurs"

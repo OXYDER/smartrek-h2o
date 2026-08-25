@@ -55,7 +55,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [statusFilter, setStatusFilter] = useState<SensorStatus | 'all'>('all')
   const [sortBy, setSortBy] = useState<SortOption>('default')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'grid' : 'table'
+  )
   const [openSensorId, setOpenSensorId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [loading, setLoading] = useState(true)

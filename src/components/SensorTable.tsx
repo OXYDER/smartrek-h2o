@@ -57,7 +57,7 @@ function SortHeader({
   return (
     <th
       onClick={() => onSortChange(sortBy === ascValue ? descValue : ascValue)}
-      className={`px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide cursor-pointer select-none hover:text-sap transition-colors ${
+      className={`px-2 sm:px-3 py-2 text-left font-mono text-[10px] sm:text-[11px] uppercase tracking-wide cursor-pointer select-none hover:text-sap transition-colors whitespace-nowrap ${
         active ? 'text-sap' : 'text-muted'
       } ${className}`}
     >
@@ -70,10 +70,10 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
   return (
     <div className="rounded-lg border border-line overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="bg-panel-raised border-b border-line">
-              <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted w-8"></th>
+              <th className="px-2 sm:px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wide text-muted w-6 sm:w-8"></th>
               <SortHeader label="Nom" ascValue="name-asc" descValue="name-desc" sortBy={sortBy} onSortChange={onSortChange} />
               <SortHeader label="Statut" ascValue="status-asc" descValue="status-desc" sortBy={sortBy} onSortChange={onSortChange} />
               <SortHeader
@@ -89,6 +89,7 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
                 descValue="temp-desc"
                 sortBy={sortBy}
                 onSortChange={onSortChange}
+                className="hidden sm:table-cell"
               />
               <SortHeader
                 label="Batterie"
@@ -96,14 +97,23 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
                 descValue="battery-desc"
                 sortBy={sortBy}
                 onSortChange={onSortChange}
+                className="hidden sm:table-cell"
               />
-              <SortHeader label="Type" ascValue="type-asc" descValue="type-desc" sortBy={sortBy} onSortChange={onSortChange} />
+              <SortHeader
+                label="Type"
+                ascValue="type-asc"
+                descValue="type-desc"
+                sortBy={sortBy}
+                onSortChange={onSortChange}
+                className="hidden lg:table-cell"
+              />
               <SortHeader
                 label="Maj"
                 ascValue="update-asc"
                 descValue="update-desc"
                 sortBy={sortBy}
                 onSortChange={onSortChange}
+                className="hidden lg:table-cell"
               />
             </tr>
           </thead>
@@ -124,14 +134,14 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
                     i % 2 === 0 ? 'bg-panel' : 'bg-panel/60'
                   }`}
                 >
-                  <td className="px-3 py-2">
+                  <td className="px-2 sm:px-3 py-2">
                     <DeviceIcon kind={getSensorIconKind(sensor)} size={16} color="var(--color-sap)" />
                   </td>
-                  <td className="px-3 py-2 font-medium text-sap whitespace-nowrap">{sensor.name}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 sm:px-3 py-2 font-medium text-sap whitespace-nowrap">{sensor.name}</td>
+                  <td className="px-2 sm:px-3 py-2">
                     <StatusBadge status={status} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 sm:px-3 py-2">
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-xs">
                       {vacuumChannels.length === 0 && <span className="text-muted">—</span>}
                       {vacuumChannels.map((c) => {
@@ -145,18 +155,20 @@ export function SensorTable({ sensors, onOpen, sortBy, onSortChange }: Props) {
                       })}
                     </div>
                   </td>
-                  <td className="px-3 py-2 font-mono tabular-nums whitespace-nowrap">
+                  <td className="hidden sm:table-cell px-2 sm:px-3 py-2 font-mono tabular-nums whitespace-nowrap">
                     {tempChannel ? `${tempChannel.currentValue} °C` : <span className="text-muted">—</span>}
                   </td>
-                  <td className="px-3 py-2 font-mono tabular-nums whitespace-nowrap">
+                  <td className="hidden sm:table-cell px-2 sm:px-3 py-2 font-mono tabular-nums whitespace-nowrap">
                     {sensor.batteryPercent !== undefined ? (
                       <span style={{ color: getBatteryColor(sensor.batteryPercent) }}>{sensor.batteryPercent}%</span>
                     ) : (
                       <span className="text-muted">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-muted whitespace-nowrap">{getSensorTypeLabel(sensor)}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted whitespace-nowrap">
+                  <td className="hidden lg:table-cell px-2 sm:px-3 py-2 text-muted whitespace-nowrap">
+                    {getSensorTypeLabel(sensor)}
+                  </td>
+                  <td className="hidden lg:table-cell px-2 sm:px-3 py-2 font-mono text-xs text-muted whitespace-nowrap">
                     {formatDateTime(sensor.lastReadingAt)}
                   </td>
                 </tr>

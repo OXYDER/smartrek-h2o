@@ -110,7 +110,6 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
           ? (decodeBatteryPercent(item.dats, 13) ?? undefined)
           : undefined,
     channels,
-    notificationChannels: [],
   }
 }
 

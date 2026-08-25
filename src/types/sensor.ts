@@ -9,12 +9,21 @@ export type ChannelKind =
 
 export type SensorStatus = 'online' | 'offline' | 'warning' | 'alarm'
 
+export interface AlarmNotification {
+  type: 'sms' | 'email' | 'push'
+  target: string
+  enabled: boolean
+}
+
+/** Une alarme = un seuil (min/max) + qui notifier quand il est dépassé.
+ * Fusionne ce qui était avant deux concepts séparés (seuil + notification). */
 export interface ThresholdRule {
   id: string
   label: string
   min?: number
   max?: number
   enabled: boolean
+  notification?: AlarmNotification
 }
 
 /** Configuration du différentiel pour UN port précis — capteur ET port de
@@ -38,13 +47,6 @@ export interface SensorChannel {
   differential?: PortDifferentialConfig
 }
 
-export interface NotificationChannel {
-  id: string
-  type: 'sms' | 'email' | 'push'
-  target: string
-  enabled: boolean
-}
-
 /** Un nœud capteur physique — peut exposer plusieurs canaux de lecture
  * (ex. 3 sondes de vide + 1 sonde de température sur le même boîtier).
  * Le statut (en ligne/hors ligne/alarme) n'est PAS stocké ici — il est
@@ -66,7 +68,6 @@ export interface Sensor {
   longitude?: number
   batteryPercent?: number
   channels: SensorChannel[]
-  notificationChannels: NotificationChannel[]
   notes?: string
 }
 

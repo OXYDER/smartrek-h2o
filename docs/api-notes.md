@@ -276,15 +276,25 @@ Cabane`, 5 ports actifs).
 
 Configurable individuellement pour **chaque port de chaque capteur** —
 pas un seul réglage par capteur. Sur chaque port de vide dans le panneau
-de détail, un lien « Différentiel » se déplie et permet de choisir
-librement : un capteur de référence, PUIS un port précis sur ce capteur
-(pas forcément le même numéro de port des deux côtés), PUIS une alarme
-min/max sur l'écart. L'écart s'affiche entre parenthèses à côté de la
-valeur du port sur les cartes, le tableau, et le détail. Implémenté dans
+de détail, un lien « + Différentiel » (ou « ▸ Différentiel (vs X · Y) »
+une fois configuré) permet de choisir directement un port de référence
+dans une **liste plate de tous les ports de tous les autres capteurs**
+(pas un choix en deux étapes capteur puis port), puis une alarme min/max
+sur l'écart. L'écart s'affiche entre parenthèses à côté de la valeur du
+port sur les cartes, le tableau, et le détail. Implémenté dans
 `src/lib/differential.ts` ; la config vit sur le `SensorChannel`
-lui-même (`differential: PortDifferentialConfig`), pas sur le `Sensor`
-— chaque port est indépendant. Stocké localement (comme les seuils) —
-pas d'endpoint d'écriture Smartrek connu pour ça.
+lui-même (`differential: PortDifferentialConfig`), pas sur le `Sensor`.
+
+## Fonctionnalité locale — Alarmes (seuil + notification fusionnés)
+
+Les anciennes sections séparées « Seuils » (par canal) et
+« Notifications » (au niveau du capteur entier) sont fusionnées en une
+seule section « Alarmes » **par port** : chaque alarme = un seuil
+min/max + à qui notifier (SMS/courriel/push + destinataire), configurés
+ensemble via « + Alarme ». `ThresholdRule` porte maintenant un champ
+optionnel `notification`. Le `Sensor.notificationChannels` global a été
+retiré — les notifications n'existent plus qu'au niveau de chaque
+alarme de port.
 
 ## Fonctionnalité locale — carte des passerelles et des capteurs
 

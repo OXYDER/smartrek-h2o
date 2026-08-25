@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { NotificationChannel, PortDifferentialConfig, Sensor, SensorChannel, ThresholdRule } from '../types/sensor'
+import type { PortDifferentialConfig, Sensor, SensorChannel, ThresholdRule } from '../types/sensor'
 import { CHANNEL_KIND_ABBR } from '../types/sensor'
 import { StatusBadge } from './StatusBadge'
 import { BatteryIndicator } from './BatteryIndicator'
@@ -31,10 +31,11 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
   const status = getEffectiveStatus(sensor, allSensors)
   const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
 
-  // Capteurs candidats comme référence — n'importe quel autre capteur ayant au moins un canal de vide.
-  const referenceSensorCandidates = allSensors.filter(
-    (s) => s.id !== sensor.id && s.channels.some((c) => c.kind === 'vacuum')
-  )
+  // Liste plate de tous les ports de vide de TOUS les autres capteurs —
+  // choix direct du port de référence en une seule étape.
+  const referencePortOptions = allSensors
+    .filter((s) => s.id !== sensor.id)
+    .flatMap((s) => s.channels.filter((c) => c.kind === 'vacuum').map((c) => ({ sensor: s, channel: c })))
 
   async function saveName() {
     if (name === sensor.name) return
@@ -48,18 +49,18 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
     if (updated) onChange(updated)
   }
 
-  async function addThreshold(channelId: string, currentValue: number) {
-    const rule: ThresholdRule = { id: uid(), label: 'Nouveau seuil', max: currentValue + 5, enabled: true }
+  async function addAlarm(channelId: string, currentValue: number) {
+    const rule: ThresholdRule = { id: uid(), label: 'Nouvelle alarme', max: currentValue + 5, enabled: true }
     const updated = await smartrekClient.upsertThreshold(sensor.id, channelId, rule)
     if (updated) onChange(updated)
   }
 
-  async function patchThreshold(channelId: string, rule: ThresholdRule) {
+  async function patchAlarm(channelId: string, rule: ThresholdRule) {
     const updated = await smartrekClient.upsertThreshold(sensor.id, channelId, rule)
     if (updated) onChange(updated)
   }
 
-  async function removeThreshold(channelId: string, ruleId: string) {
+  async function removeAlarm(channelId: string, ruleId: string) {
     const updated = await smartrekClient.deleteThreshold(sensor.id, channelId, ruleId)
     if (updated) onChange(updated)
   }
@@ -71,22 +72,6 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
       c.id === channelId ? { ...c, differential: config } : c
     )
     const updated = await smartrekClient.updateSensor(sensor.id, { channels: newChannels })
-    if (updated) onChange(updated)
-  }
-
-  async function addNotificationChannel() {
-    const channel: NotificationChannel = { id: uid(), type: 'sms', target: '', enabled: true }
-    const updated = await smartrekClient.upsertNotificationChannel(sensor.id, channel)
-    if (updated) onChange(updated)
-  }
-
-  async function patchNotificationChannel(channel: NotificationChannel) {
-    const updated = await smartrekClient.upsertNotificationChannel(sensor.id, channel)
-    if (updated) onChange(updated)
-  }
-
-  async function removeNotificationChannel(id: string) {
-    const updated = await smartrekClient.deleteNotificationChannel(sensor.id, id)
     if (updated) onChange(updated)
   }
 
@@ -159,7 +144,7 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                 const refSensor = channel.differential
                   ? allSensors.find((s) => s.id === channel.differential!.referenceSensorId)
                   : undefined
-                const refPortCandidates = refSensor ? refSensor.channels.filter((c) => c.kind === 'vacuum') : []
+                const refChannel = refSensor?.channels.find((c) => c.id === channel.differential?.referencePortId)
 
                 return (
                   <div key={channel.id} className="rounded-lg border border-line bg-panel-raised p-3 flex flex-col gap-3">
@@ -191,66 +176,121 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                       height={36}
                     />
 
+                    {/* Alarmes — seuil + notification fusionnés */}
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono text-muted uppercase">Seuils</span>
+                        <span className="text-xs font-mono text-muted uppercase">Alarmes</span>
                         <button
-                          onClick={() => addThreshold(channel.id, channel.currentValue)}
+                          onClick={() => addAlarm(channel.id, channel.currentValue)}
                           className="text-xs font-mono text-sap hover:underline"
                         >
-                          + Ajouter
+                          + Alarme
                         </button>
                       </div>
                       {channel.thresholds.length === 0 && (
-                        <p className="text-xs text-muted italic">Aucun seuil configuré.</p>
+                        <p className="text-xs text-muted italic">Aucune alarme configurée.</p>
                       )}
                       {channel.thresholds.map((t) => (
-                        <div key={t.id} className="flex items-center gap-2 text-xs">
-                          <input
-                            value={t.label}
-                            onChange={(e) => patchThreshold(channel.id, { ...t, label: e.target.value })}
-                            className="flex-1 bg-base border border-line rounded px-1.5 py-0.5 outline-none focus:border-sap"
-                          />
-                          <label className="flex items-center gap-1 font-mono text-muted">
-                            Min
+                        <div key={t.id} className="rounded border border-line bg-base p-2 flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 text-xs">
                             <input
-                              type="number"
-                              value={t.min ?? ''}
+                              value={t.label}
+                              onChange={(e) => patchAlarm(channel.id, { ...t, label: e.target.value })}
+                              className="flex-1 bg-transparent border-b border-transparent focus:border-line outline-none"
+                            />
+                            <label className="flex items-center gap-1 font-mono text-muted">
+                              Min
+                              <input
+                                type="number"
+                                value={t.min ?? ''}
+                                onChange={(e) =>
+                                  patchAlarm(channel.id, {
+                                    ...t,
+                                    min: e.target.value === '' ? undefined : Number(e.target.value),
+                                  })
+                                }
+                                className="w-14 bg-panel-raised border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                              />
+                            </label>
+                            <label className="flex items-center gap-1 font-mono text-muted">
+                              Max
+                              <input
+                                type="number"
+                                value={t.max ?? ''}
+                                onChange={(e) =>
+                                  patchAlarm(channel.id, {
+                                    ...t,
+                                    max: e.target.value === '' ? undefined : Number(e.target.value),
+                                  })
+                                }
+                                className="w-14 bg-panel-raised border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                              />
+                            </label>
+                            <input
+                              type="checkbox"
+                              checked={t.enabled}
+                              onChange={(e) => patchAlarm(channel.id, { ...t, enabled: e.target.checked })}
+                              className="accent-sap"
+                              title="Alarme active"
+                            />
+                            <button
+                              onClick={() => removeAlarm(channel.id, t.id)}
+                              className="text-muted hover:text-danger px-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs pt-1.5 border-t border-line">
+                            <span className="text-muted font-mono uppercase text-[10px] shrink-0">Notifier</span>
+                            <select
+                              value={t.notification?.type ?? 'sms'}
                               onChange={(e) =>
-                                patchThreshold(channel.id, {
+                                patchAlarm(channel.id, {
                                   ...t,
-                                  min: e.target.value === '' ? undefined : Number(e.target.value),
+                                  notification: {
+                                    type: e.target.value as 'sms' | 'email' | 'push',
+                                    target: t.notification?.target ?? '',
+                                    enabled: t.notification?.enabled ?? true,
+                                  },
                                 })
                               }
-                              className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                            />
-                          </label>
-                          <label className="flex items-center gap-1 font-mono text-muted">
-                            Max
+                              className="bg-panel-raised border border-line rounded px-1.5 py-1 font-mono outline-none"
+                            >
+                              <option value="sms">SMS</option>
+                              <option value="email">Courriel</option>
+                              <option value="push">Push</option>
+                            </select>
                             <input
-                              type="number"
-                              value={t.max ?? ''}
+                              value={t.notification?.target ?? ''}
                               onChange={(e) =>
-                                patchThreshold(channel.id, {
+                                patchAlarm(channel.id, {
                                   ...t,
-                                  max: e.target.value === '' ? undefined : Number(e.target.value),
+                                  notification: {
+                                    type: t.notification?.type ?? 'sms',
+                                    target: e.target.value,
+                                    enabled: t.notification?.enabled ?? true,
+                                  },
                                 })
                               }
-                              className="w-14 bg-base border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+                              placeholder={t.notification?.type === 'email' ? 'adresse@courriel.com' : 'Destinataire'}
+                              className="flex-1 bg-transparent border-b border-transparent focus:border-line outline-none min-w-0"
                             />
-                          </label>
-                          <input
-                            type="checkbox"
-                            checked={t.enabled}
-                            onChange={(e) => patchThreshold(channel.id, { ...t, enabled: e.target.checked })}
-                            className="accent-sap"
-                          />
-                          <button
-                            onClick={() => removeThreshold(channel.id, t.id)}
-                            className="text-muted hover:text-danger px-1"
-                          >
-                            ✕
-                          </button>
+                            {t.notification && (
+                              <input
+                                type="checkbox"
+                                checked={t.notification.enabled}
+                                onChange={(e) =>
+                                  patchAlarm(channel.id, {
+                                    ...t,
+                                    notification: { ...t.notification!, enabled: e.target.checked },
+                                  })
+                                }
+                                className="accent-sap"
+                                title="Notification active"
+                              />
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -258,70 +298,58 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                     {/* Différentiel — seulement pertinent pour les canaux de vide */}
                     {channel.kind === 'vacuum' && (
                       <div className="flex flex-col gap-1.5 pt-1.5 border-t border-line">
-                        <button
-                          onClick={() => setExpandedDiffChannelId(diffExpanded ? null : channel.id)}
-                          className="text-xs font-mono text-sap hover:underline text-left flex items-center gap-1"
-                        >
-                          {diffExpanded ? '▾' : '▸'} Différentiel
-                          {channel.differential && refSensor && (
+                        {!channel.differential ? (
+                          <button
+                            onClick={() => setExpandedDiffChannelId(diffExpanded ? null : channel.id)}
+                            className="text-xs font-mono text-sap hover:underline text-left"
+                          >
+                            + Différentiel
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setExpandedDiffChannelId(diffExpanded ? null : channel.id)}
+                            className="text-xs font-mono text-sap hover:underline text-left"
+                          >
+                            {diffExpanded ? '▾' : '▸'} Différentiel
                             <span className="text-muted">
-                              (vs {refSensor.name} ·{' '}
-                              {refPortCandidates.find((c) => c.id === channel.differential!.referencePortId)?.label ??
-                                '?'}
-                              )
+                              {' '}
+                              (vs {refSensor?.name ?? '?'} · {refChannel?.label ?? '?'})
                             </span>
-                          )}
-                        </button>
+                          </button>
+                        )}
 
                         {diffExpanded && (
                           <div className="flex flex-col gap-2 pl-1">
                             <label className="flex flex-col gap-1 text-xs">
-                              <span className="text-muted font-mono uppercase">Capteur de référence</span>
+                              <span className="text-muted font-mono uppercase">Port de référence</span>
                               <select
-                                value={channel.differential?.referenceSensorId ?? ''}
+                                value={
+                                  channel.differential
+                                    ? `${channel.differential.referenceSensorId}::${channel.differential.referencePortId}`
+                                    : ''
+                                }
                                 onChange={(e) => {
                                   if (!e.target.value) {
                                     patchChannelDifferential(channel.id, undefined)
                                     return
                                   }
+                                  const [refSensorId, refPortId] = e.target.value.split('::')
                                   patchChannelDifferential(channel.id, {
-                                    referenceSensorId: e.target.value,
-                                    referencePortId: '',
+                                    referenceSensorId: refSensorId,
+                                    referencePortId: refPortId,
+                                    threshold: channel.differential?.threshold,
                                   })
                                 }}
                                 className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
                               >
                                 <option value="">Aucun</option>
-                                {referenceSensorCandidates.map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.name}
+                                {referencePortOptions.map(({ sensor: s, channel: c }) => (
+                                  <option key={`${s.id}::${c.id}`} value={`${s.id}::${c.id}`}>
+                                    {s.name} — {c.label} ({c.currentValue} {c.unit})
                                   </option>
                                 ))}
                               </select>
                             </label>
-
-                            {channel.differential?.referenceSensorId && (
-                              <label className="flex flex-col gap-1 text-xs">
-                                <span className="text-muted font-mono uppercase">Port de référence</span>
-                                <select
-                                  value={channel.differential.referencePortId}
-                                  onChange={(e) =>
-                                    patchChannelDifferential(channel.id, {
-                                      ...channel.differential!,
-                                      referencePortId: e.target.value,
-                                    })
-                                  }
-                                  className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
-                                >
-                                  <option value="">Choisir…</option>
-                                  {refPortCandidates.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.label} ({c.currentValue} {c.unit})
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
 
                             {channel.differential?.referencePortId && (
                               <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
@@ -407,54 +435,6 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                   </div>
                 )
               })}
-          </section>
-
-          {/* Notifications */}
-          <section className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <h4 className="font-display text-sm tracking-wide text-muted uppercase">Notifications</h4>
-              <button onClick={addNotificationChannel} className="text-xs font-mono text-sap hover:underline">
-                + Ajouter
-              </button>
-            </div>
-            {sensor.notificationChannels.length === 0 && (
-              <p className="text-sm text-muted italic">Aucune notification configurée.</p>
-            )}
-            {sensor.notificationChannels.map((c) => (
-              <div key={c.id} className="rounded border border-line bg-panel-raised p-3 flex items-center gap-2">
-                <select
-                  value={c.type}
-                  onChange={(e) =>
-                    patchNotificationChannel({ ...c, type: e.target.value as NotificationChannel['type'] })
-                  }
-                  className="bg-base border border-line rounded px-1.5 py-1 text-xs font-mono outline-none"
-                >
-                  <option value="sms">SMS</option>
-                  <option value="email">Courriel</option>
-                  <option value="push">Push</option>
-                </select>
-                <input
-                  value={c.target}
-                  onChange={(e) => patchNotificationChannel({ ...c, target: e.target.value })}
-                  placeholder={c.type === 'email' ? 'adresse@courriel.com' : 'Destinataire'}
-                  className="flex-1 bg-transparent text-sm outline-none border-b border-transparent focus:border-line"
-                />
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  <input
-                    type="checkbox"
-                    checked={c.enabled}
-                    onChange={(e) => patchNotificationChannel({ ...c, enabled: e.target.checked })}
-                    className="accent-sap"
-                  />
-                </label>
-                <button
-                  onClick={() => removeNotificationChannel(c.id)}
-                  className="text-muted hover:text-danger text-sm px-1"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
           </section>
 
           {/* Notes */}

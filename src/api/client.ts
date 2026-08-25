@@ -1,11 +1,4 @@
-import type {
-  Sensor,
-  Site,
-  ThresholdRule,
-  NotificationChannel,
-  SensorChannel,
-  ChannelKind,
-} from '../types/sensor'
+import type { Sensor, Site, ThresholdRule, SensorChannel, ChannelKind } from '../types/sensor'
 import { fetchBoot } from './realBoot'
 
 /**
@@ -101,7 +94,6 @@ export const smartrekClient = {
         history: [],
         thresholds: [],
       })),
-      notificationChannels: [],
     }
     sensors = [...sensors, sensor]
     return delay(sensor)
@@ -199,32 +191,6 @@ export const smartrekClient = {
         ),
       }
     })
-    return delay(sensors.find((s) => s.id === sensorId))
-  },
-
-  async upsertNotificationChannel(
-    sensorId: string,
-    channel: NotificationChannel
-  ): Promise<Sensor | undefined> {
-    // TODO(réel): PUT /api/sensors/:id/notifications/:channelId
-    sensors = sensors.map((s) => {
-      if (s.id !== sensorId) return s
-      const exists = s.notificationChannels.some((c) => c.id === channel.id)
-      const notificationChannels = exists
-        ? s.notificationChannels.map((c) => (c.id === channel.id ? channel : c))
-        : [...s.notificationChannels, { ...channel, id: channel.id || uid('al') }]
-      return { ...s, notificationChannels }
-    })
-    return delay(sensors.find((s) => s.id === sensorId))
-  },
-
-  async deleteNotificationChannel(sensorId: string, channelId: string): Promise<Sensor | undefined> {
-    // TODO(réel): DELETE /api/sensors/:id/notifications/:channelId
-    sensors = sensors.map((s) =>
-      s.id === sensorId
-        ? { ...s, notificationChannels: s.notificationChannels.filter((c) => c.id !== channelId) }
-        : s
-    )
     return delay(sensors.find((s) => s.id === sensorId))
   },
 }

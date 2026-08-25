@@ -208,7 +208,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        <div className="px-3 sm:px-6 py-3 border-b border-line flex gap-2 overflow-x-auto">
+        <div className="px-3 sm:px-6 py-3 border-b border-line flex gap-2">
           <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
           <Dropdown
             label="Filtrer"

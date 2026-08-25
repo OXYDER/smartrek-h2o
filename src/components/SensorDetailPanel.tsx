@@ -16,13 +16,17 @@ interface Props {
   onClose: () => void
   onChange: (sensor: Sensor) => void
   onDelete: (id: string) => void
+  /** Rend le contenu sans le voile/overlay plein écran — pour l'afficher
+   * dans le flux normal de la page (ex. sous une carte) plutôt qu'en
+   * fenêtre modale par-dessus tout. */
+  inline?: boolean
 }
 
 function uid() {
   return Math.random().toString(36).slice(2, 9)
 }
 
-export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDelete }: Props) {
+export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDelete, inline = false }: Props) {
   const [name, setName] = useState(sensor.name)
   const [notes, setNotes] = useState(sensor.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -80,11 +84,15 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
     onDelete(sensor.id)
   }
 
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg h-full bg-panel border-l border-line flex flex-col overflow-y-auto">
-        <div className="p-5 border-b border-line flex items-start justify-between gap-3">
+  const panelContent = (
+    <div
+      className={
+        inline
+          ? 'relative w-full bg-panel border border-line rounded-lg flex flex-col overflow-y-auto max-h-[70vh]'
+          : 'relative w-full max-w-lg h-full bg-panel border-l border-line flex flex-col overflow-y-auto'
+      }
+    >
+      <div className="p-5 border-b border-line flex items-start justify-between gap-3">
           <div className="flex-1 flex items-start gap-2 min-w-0">
             <DeviceIcon kind={getSensorIconKind(sensor)} size={26} color="var(--color-sap)" className="mt-1" />
             <div className="flex-1 min-w-0">
@@ -476,6 +484,14 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
           </section>
         </div>
       </div>
+  )
+
+  if (inline) return panelContent
+
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      {panelContent}
     </div>
   )
 }

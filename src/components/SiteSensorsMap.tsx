@@ -2,20 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Sensor, Site } from '../types/sensor'
-import { DEVICE_ICON_URLS, DeviceIcon } from './DeviceIcon'
+import { DEVICE_ICON_URLS } from './DeviceIcon'
 import type { DeviceIconKind } from './DeviceIcon'
-import { StatusBadge } from './StatusBadge'
-import { BatteryIndicator } from './BatteryIndicator'
+import { SensorDetailPanel } from './SensorDetailPanel'
 import { getSensorIconKind, getSensorTypeLabel } from '../lib/sensorType'
-import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
-import { getChannelDifferential } from '../lib/differential'
+import { getEffectiveStatus } from '../lib/sensorStatus'
 import { addBaseLayers } from '../lib/mapLayers'
 
 interface Props {
   site: Site
   sensors: Sensor[] // déjà filtrés à ce site (et aux filtres actifs)
   allSensors: Sensor[]
-  onOpenSensor: (id: string) => void
+  onSensorChange: (sensor: Sensor) => void
+  onSensorDelete: (id: string) => void
 }
 
 function parseLocation(location: string): [number, number] | null {
@@ -60,7 +59,7 @@ function sensorSummary(sensor: Sensor): string {
   return parts.join(' · ') || 'Aucune lecture'
 }
 
-export function SiteSensorsMap({ site, sensors, allSensors, onOpenSensor }: Props) {
+export function SiteSensorsMap({ site, sensors, allSensors, onSensorChange, onSensorDelete }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null)
@@ -138,62 +137,19 @@ export function SiteSensorsMap({ site, sensors, allSensors, onOpenSensor }: Prop
         </p>
       )}
 
-      {/* Résumé du capteur cliqué — apparaît sous la carte, ne la recouvre pas */}
+      {/* Détail complet du capteur cliqué — sous la carte, pas en modale par-dessus */}
       {selectedSensor && (
-        <div className="rounded-lg border border-sap bg-panel p-3 flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <DeviceIcon kind={getSensorIconKind(selectedSensor)} size={20} color="var(--color-sap)" />
-              <h4 className="font-display font-semibold text-sap truncate">{selectedSensor.name}</h4>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <StatusBadge status={getEffectiveStatus(selectedSensor, allSensors)} />
-              <button
-                onClick={() => setSelectedSensorId(null)}
-                className="text-muted hover:text-text text-lg leading-none"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            {selectedSensor.batteryPercent !== undefined && <BatteryIndicator percent={selectedSensor.batteryPercent} />}
-            {selectedSensor.channels
-              .filter((c) => c.kind !== 'temperature')
-              .map((c) => {
-                const alarming = isChannelAlarming(c)
-                const diff = getChannelDifferential(c, allSensors)
-                return (
-                  <span key={c.id} className={`font-mono ${alarming ? 'text-danger' : ''}`}>
-                    {c.label}: {c.currentValue}
-                    {c.unit}
-                    {diff !== undefined && (
-                      <span className="text-muted text-xs">
-                        {' '}
-                        ({diff > 0 ? '+' : ''}
-                        {diff})
-                      </span>
-                    )}
-                  </span>
-                )
-              })}
-            {selectedSensor.channels.find((c) => c.kind === 'temperature') && (
-              <span className="font-mono">
-                {selectedSensor.channels.find((c) => c.kind === 'temperature')!.currentValue}°C
-              </span>
-            )}
-          </div>
-
-          <p className="text-xs text-muted">{getSensorTypeLabel(selectedSensor)}</p>
-
-          <button
-            onClick={() => onOpenSensor(selectedSensor.id)}
-            className="self-start text-xs font-mono text-sap hover:underline"
-          >
-            Voir le détail complet →
-          </button>
-        </div>
+        <SensorDetailPanel
+          inline
+          sensor={selectedSensor}
+          allSensors={allSensors}
+          onClose={() => setSelectedSensorId(null)}
+          onChange={onSensorChange}
+          onDelete={(id) => {
+            onSensorDelete(id)
+            setSelectedSensorId(null)
+          }}
+        />
       )}
     </div>
   )

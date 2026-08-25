@@ -324,10 +324,12 @@ une image satellite donnerait n'importe quoi). Logique partagée dans
 `src/lib/mapLayers.ts`. Capteurs sans coordonnées propres : simplement
 absents de la carte par site, avec un compte affiché en dessous.
 
-Clic sur un pin de capteur (carte par site) : un résumé compact
-apparaît **sous la carte** (pas une modale par-dessus) — nom, statut,
-valeurs par port avec différentiel, batterie, type. Bouton « Voir le
-détail complet » pour ouvrir le vrai panneau de détail si besoin.
+Clic sur un pin de capteur (carte par site) : le **panneau de détail
+complet** (canaux, alarmes, différentiel, notes, suppression — tout,
+pas un résumé) apparaît **sous la carte, dans le flux normal de la
+page** — pas en fenêtre modale par-dessus tout. `SensorDetailPanel`
+accepte maintenant une prop `inline` qui retire le voile/overlay plein
+écran pour ce cas précis.
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)

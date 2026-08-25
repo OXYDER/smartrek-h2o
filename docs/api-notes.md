@@ -324,11 +324,10 @@ une image satellite donnerait n'importe quoi). Logique partagée dans
 `src/lib/mapLayers.ts`. Capteurs sans coordonnées propres : simplement
 absents de la carte par site, avec un compte affiché en dessous.
 
-Clic sur un pin de capteur (carte par site) : le panneau de détail
-complet apparaît **flottant à gauche, par-dessus la carte** (`position:
-absolute`, `z-index: 20`), pas en dessous ni en modale plein écran.
-`SensorDetailPanel` accepte une prop `inline` qui retire le voile/
-overlay plein écran pour ce cas précis.
+Clic sur un pin de capteur (carte par site) : ouvre le **même panneau de
+détail standard** que sur la grille ou le tableau (`onOpenSensor`,
+overlay plein écran depuis la droite) — comportement identique partout
+dans l'app, pas de traitement spécial pour la carte.
 
 **Isolation du z-index** : Leaflet utilise ses propres z-index internes
 (panneaux/contrôles jusqu'à ~1000) qui pouvaient passer par-dessus les

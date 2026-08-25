@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Sensor, Site } from '../types/sensor'
 import { DEVICE_ICON_URLS } from './DeviceIcon'
 import type { DeviceIconKind } from './DeviceIcon'
-import { SensorDetailPanel } from './SensorDetailPanel'
 import { getSensorIconKind, getSensorTypeLabel } from '../lib/sensorType'
 import { getEffectiveStatus } from '../lib/sensorStatus'
 import { addBaseLayers } from '../lib/mapLayers'
@@ -13,8 +12,7 @@ interface Props {
   site: Site
   sensors: Sensor[] // déjà filtrés à ce site (et aux filtres actifs)
   allSensors: Sensor[]
-  onSensorChange: (sensor: Sensor) => void
-  onSensorDelete: (id: string) => void
+  onOpenSensor: (id: string) => void
 }
 
 function parseLocation(location: string): [number, number] | null {
@@ -59,10 +57,9 @@ function sensorSummary(sensor: Sensor): string {
   return parts.join(' · ') || 'Aucune lecture'
 }
 
-export function SiteSensorsMap({ site, sensors, allSensors, onSensorChange, onSensorDelete }: Props) {
+export function SiteSensorsMap({ site, sensors, allSensors, onOpenSensor }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
-  const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -108,7 +105,9 @@ export function SiteSensorsMap({ site, sensors, allSensors, onSensorChange, onSe
         `<strong>${sensor.name}</strong><br/>${getSensorTypeLabel(sensor)}<br/>${sensorSummary(sensor)}`,
         { direction: 'top' }
       )
-      marker.on('click', () => setSelectedSensorId(sensor.id))
+      // Même comportement qu'un clic sur une carte/ligne de tableau — ouvre
+      // le panneau de détail standard, pas de traitement spécial pour la carte.
+      marker.on('click', () => onOpenSensor(sensor.id))
       markers.push(marker)
     })
 
@@ -119,40 +118,15 @@ export function SiteSensorsMap({ site, sensors, allSensors, onSensorChange, onSe
     return () => {
       markers.forEach((m) => m.remove())
     }
-  }, [site, sensors, allSensors])
+  }, [site, sensors, allSensors, onOpenSensor])
 
   const missingCount = sensors.filter((s) => !(s.latitude && s.longitude)).length
-  const selectedSensor = sensors.find((s) => s.id === selectedSensorId) ?? null
 
   return (
     <div className="flex flex-col gap-2">
-      <div
-        className="relative rounded-lg border border-line overflow-hidden"
-        style={{ height: '60vh', minHeight: 360 }}
-      >
-        <div ref={containerRef} className="smartrek-map" style={{ height: '100%', width: '100%' }} />
-
-        {/* Détail complet du capteur cliqué — flottant à gauche, par-dessus
-            la carte (z-index au-dessus des panneaux Leaflet, qui sont
-            confinés dans leur propre contexte d'empilement — voir
-            .smartrek-map dans index.css). */}
-        {selectedSensor && (
-          <div className="absolute inset-y-0 left-0 z-20 w-full sm:w-96 max-w-full overflow-y-auto shadow-[8px_0_24px_-4px_rgba(0,0,0,0.6)]">
-            <SensorDetailPanel
-              inline
-              sensor={selectedSensor}
-              allSensors={allSensors}
-              onClose={() => setSelectedSensorId(null)}
-              onChange={onSensorChange}
-              onDelete={(id) => {
-                onSensorDelete(id)
-                setSelectedSensorId(null)
-              }}
-            />
-          </div>
-        )}
+      <div className="rounded-lg border border-line overflow-hidden">
+        <div ref={containerRef} className="smartrek-map" style={{ height: '60vh', minHeight: 360, width: '100%' }} />
       </div>
-
       {missingCount > 0 && (
         <p className="text-xs text-muted italic">
           {missingCount} capteur{missingCount !== 1 ? 's' : ''} sans coordonnées GPS individuelles, non affiché

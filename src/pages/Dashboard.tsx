@@ -342,13 +342,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             (() => {
               const site = sites.find((s) => s.id === activeSiteId)
               return site ? (
-                <SiteSensorsMap
-                  site={site}
-                  sensors={filtered}
-                  allSensors={sensors}
-                  onSensorChange={updateSensorInList}
-                  onSensorDelete={removeSensorFromList}
-                />
+                <SiteSensorsMap site={site} sensors={filtered} allSensors={sensors} onOpenSensor={setOpenSensorId} />
               ) : null
             })()
           ) : loading ? (

@@ -53,6 +53,8 @@ export interface Sensor {
    * Utilisé pour classer les capteurs dont on n'a pas encore décodé les
    * lectures (ex. niveau de bassin, répéteurs). */
   deviceType?: number
+  latitude?: number
+  longitude?: number
   batteryPercent?: number
   channels: SensorChannel[]
   /** Capteur de vide de référence (ex. celui à la station) pour calculer

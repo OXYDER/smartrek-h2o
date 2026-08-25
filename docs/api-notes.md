@@ -287,16 +287,29 @@ dans `src/lib/differential.ts`, champs `referenceSensorId` /
 (comme les seuils de canaux) — pas d'endpoint d'écriture Smartrek connu
 pour ça.
 
-## Fonctionnalité locale — carte des passerelles
+## Fonctionnalité locale — carte des passerelles et des capteurs
 
-Vue « Carte » accessible depuis la sidebar, affiche chaque passerelle
-comme marqueur sur une carte interactive (Leaflet + tuiles
-OpenStreetMap, pas de clé API requise — contrairement à Google Maps
-utilisé par l'app Smartrek d'origine). Clique un marqueur → bascule vers
-la liste des capteurs de ce site. Les sites sans coordonnées GPS valides
-(0,0 ou absentes) sont simplement exclus des marqueurs, avec un message
-si aucun site n'a de coordonnées. Implémenté dans
-`src/components/SitesMap.tsx`.
+Deux niveaux, tous les deux via le bouton `🗺 Carte` (dans la sidebar
+pour la vue globale, ou dans la barre de filtres quand un site est
+sélectionné) :
+
+- **Vue globale** (aucun site sélectionné) : chaque passerelle comme
+  marqueur, clique → bascule vers ce site.
+- **Vue par site** : tous les capteurs de ce site (+ la passerelle
+  elle-même) comme marqueurs individuels, en utilisant les coordonnées
+  GPS propres à chaque capteur (`latitude`/`longitude` du `row_item`,
+  jamais utilisées avant — seule la passerelle l'était). Chaque marqueur
+  utilise l'icône du type de capteur fournie par le client (vide,
+  niveau, contrôle à distance, répéteur), colorée selon le statut
+  (lime/rouge/orange). Info-bulle au survol avec nom, type, et lecture
+  clé (ports vide, température, batterie). Respecte les filtres actifs
+  (recherche, catégorie, statut) — la carte par site affiche exactement
+  ce que la liste afficherait avec les mêmes filtres.
+
+Carte : Leaflet + tuiles OpenStreetMap, pas de clé API requise
+(contrairement à Google Maps utilisé par l'app Smartrek d'origine).
+Capteurs sans coordonnées propres : simplement absents de la carte par
+site, avec un compte affiché en dessous.
 
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)

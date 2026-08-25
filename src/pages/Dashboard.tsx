@@ -5,6 +5,7 @@ import { Sidebar } from '../components/Sidebar'
 import { SensorCard } from '../components/SensorCard'
 import { SensorTable } from '../components/SensorTable'
 import { SitesMap } from '../components/SitesMap'
+import { SiteSensorsMap } from '../components/SiteSensorsMap'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
@@ -56,7 +57,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [statusFilter, setStatusFilter] = useState<SensorStatus | 'all'>('all')
   const [sortBy, setSortBy] = useState<SortOption>('default')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() =>
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'map'>(() =>
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'grid' : 'table'
   )
   const [openSensorId, setOpenSensorId] = useState<string | null>(null)
@@ -65,7 +66,6 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [bootError, setBootError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showingMap, setShowingMap] = useState(false)
 
   async function loadData() {
     const [s, se] = await Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()])
@@ -189,19 +189,21 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         onSelectAll={() => {
           setActiveSiteId(null)
           setActiveCategory(null)
-          setShowingMap(false)
         }}
         onSelectCategory={(siteId, categoryId) => {
           setActiveSiteId(siteId)
           setActiveCategory(categoryId)
-          setShowingMap(false)
         }}
         onRenameSite={renameSite}
         onLogout={onLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        showingMap={showingMap}
-        onShowMap={() => setShowingMap(true)}
+        showingMap={viewMode === 'map' && activeSiteId === null}
+        onShowMap={() => {
+          setActiveSiteId(null)
+          setActiveCategory(null)
+          setViewMode('map')
+        }}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -216,12 +218,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <div className="min-w-0">
               <h1 className="font-display text-lg sm:text-2xl truncate">
-                {showingMap
+                {viewMode === 'map' && !activeSiteId
                   ? 'Carte des passerelles'
                   : activeSiteId
                     ? sites.find((s) => s.id === activeSiteId)?.name
                     : 'Tous les capteurs'}
-                {!showingMap && activeCategory && (
+                {viewMode === 'map' && activeSiteId && <span className="text-muted"> — Carte</span>}
+                {viewMode !== 'map' && activeCategory && (
                   <span className="text-muted">
                     {' '}
                     —{' '}
@@ -231,7 +234,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 )}
               </h1>
               <p className="text-xs sm:text-sm text-muted font-mono truncate">
-                {showingMap ? (
+                {viewMode === 'map' && !activeSiteId ? (
                   `${sites.length} site${sites.length !== 1 ? 's' : ''}`
                 ) : (
                   <>
@@ -269,7 +272,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {!showingMap && (
+        {!(viewMode === 'map' && !activeSiteId) && (
           <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
             <input
               value={searchQuery}
@@ -301,18 +304,25 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               >
                 ▦ Grille
               </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+                  viewMode === 'map' ? 'border-sap text-sap bg-sap/10' : 'border-line text-muted hover:text-text'
+                }`}
+              >
+                🗺 Carte
+              </button>
             </div>
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
-          {showingMap ? (
+          {viewMode === 'map' && !activeSiteId ? (
             <SitesMap
               sites={sites}
               onSelectSite={(id) => {
                 setActiveSiteId(id)
                 setActiveCategory(null)
-                setShowingMap(false)
               }}
               onPlaceSite={async (siteId, lat, lng) => {
                 const updated = await smartrekClient.updateSite(siteId, { location: `${lat}, ${lng}` })
@@ -321,6 +331,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 }
               }}
             />
+          ) : viewMode === 'map' && activeSiteId ? (
+            (() => {
+              const site = sites.find((s) => s.id === activeSiteId)
+              return site ? (
+                <SiteSensorsMap site={site} sensors={filtered} allSensors={sensors} onOpenSensor={setOpenSensorId} />
+              ) : null
+            })()
           ) : loading ? (
             <p className="text-muted font-mono text-sm">Chargement…</p>
           ) : filtered.length === 0 ? (

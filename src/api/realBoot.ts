@@ -98,6 +98,8 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
     siteId,
     lastReadingAt: new Date(decoded.timestampMs).toISOString(),
     deviceType: item.type,
+    latitude: item.latitude ? item.latitude / 1e6 : undefined,
+    longitude: item.longitude ? item.longitude / 1e6 : undefined,
     // Formule validée pour type 0 (offset 14) et type 1 (offset 13, décalé
     // d'un octet — structure de payload différente). Pas encore trouvée
     // pour les répéteurs (type 10).

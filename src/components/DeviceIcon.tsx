@@ -4,13 +4,15 @@ import remoteIcon from '../assets/icons/wireless-control.png'
 import levelIcon from '../assets/icons/water-level.png'
 import instrumentIcon from '../assets/icons/instrument.png'
 
-const ICONS = {
+export const DEVICE_ICON_URLS = {
   vacuum: vacuumIcon,
   repeater: repeaterIcon,
   remote: remoteIcon,
   level: levelIcon,
   instrument: instrumentIcon,
 } as const
+
+const ICONS = DEVICE_ICON_URLS
 
 export type DeviceIconKind = keyof typeof ICONS
 

@@ -57,6 +57,13 @@ function mapSensor(item: RawRowItem, siteId: string): Sensor {
     decoded.channels.forEach((ch, i) => {
       if (!ch.active) return
       const pattern = CHANNEL_PATTERN[i] ?? { kind: 'vacuum' as ChannelKind, label: `Canal ${i + 1}` }
+      // Un vide en inHg ne peut physiquement pas être négatif — une valeur
+      // négative sur un canal de vide est presque certainement une
+      // sentinelle "capteur en erreur/perdu" pas encore identifiée
+      // précisément (on en connaît déjà deux autres : -100 et 320.00).
+      // On la traite comme inactive plutôt que d'afficher un chiffre
+      // impossible.
+      if (pattern.kind === 'vacuum' && ch.rawValue < 0) return
       channels.push({
         id: `${item.id}-ch${i}`,
         label: pattern.label,

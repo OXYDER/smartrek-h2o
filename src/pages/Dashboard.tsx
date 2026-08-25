@@ -5,15 +5,34 @@ import { Sidebar } from '../components/Sidebar'
 import { SensorCard } from '../components/SensorCard'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
+import { Dropdown } from '../components/Dropdown'
 import { getSensorStatus } from '../lib/sensorStatus'
 import { sensorMatchesCategory, SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES } from '../lib/sensorCategories'
 
-const STATUS_FILTERS: { value: SensorStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tous' },
-  { value: 'alarm', label: 'Alarmes' },
-  { value: 'warning', label: 'Attention' },
-  { value: 'online', label: 'En ligne' },
-  { value: 'offline', label: 'Hors ligne' },
+type SortOption =
+  | 'default'
+  | 'name-asc'
+  | 'name-desc'
+  | 'temp-asc'
+  | 'temp-desc'
+  | 'vacuum-asc'
+  | 'vacuum-desc'
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'default', label: 'Trier par' },
+  { value: 'name-asc', label: 'Nom Ascendant' },
+  { value: 'name-desc', label: 'Nom Descendant' },
+  { value: 'temp-asc', label: 'Température Ascendant' },
+  { value: 'temp-desc', label: 'Température Descendant' },
+  { value: 'vacuum-asc', label: 'Vide inHg Ascendant' },
+  { value: 'vacuum-desc', label: 'Vide inHg Descendant' },
+]
+
+const FILTER_OPTIONS: { value: SensorStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'Filtrer' },
+  { value: 'online', label: 'En Ligne' },
+  { value: 'offline', label: 'Hors Ligne' },
+  { value: 'alarm', label: 'Alarme' },
 ]
 
 export function Dashboard({ onLogout }: { onLogout: () => void }) {
@@ -22,6 +41,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<SensorStatus | 'all'>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('default')
   const [openSensorId, setOpenSensorId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -48,13 +68,49 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   }
 
   const filtered = useMemo(() => {
-    return sensors.filter((s) => {
+    const result = sensors.filter((s) => {
       if (activeSiteId && s.siteId !== activeSiteId) return false
       if (activeCategory && !sensorMatchesCategory(s, activeCategory)) return false
       if (statusFilter !== 'all' && getSensorStatus(s) !== statusFilter) return false
       return true
     })
-  }, [sensors, activeSiteId, activeCategory, statusFilter])
+
+    if (sortBy === 'default') return result
+
+    const getTemp = (s: Sensor) => s.channels.find((c) => c.kind === 'temperature')?.currentValue
+    const getVacuum = (s: Sensor) => s.channels.find((c) => c.kind === 'vacuum')?.currentValue
+
+    const sorted = [...result]
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name, 'fr')
+        case 'name-desc':
+          return b.name.localeCompare(a.name, 'fr')
+        case 'temp-asc':
+        case 'temp-desc': {
+          const av = getTemp(a)
+          const bv = getTemp(b)
+          if (av === undefined && bv === undefined) return 0
+          if (av === undefined) return 1
+          if (bv === undefined) return -1
+          return sortBy === 'temp-asc' ? av - bv : bv - av
+        }
+        case 'vacuum-asc':
+        case 'vacuum-desc': {
+          const av = getVacuum(a)
+          const bv = getVacuum(b)
+          if (av === undefined && bv === undefined) return 0
+          if (av === undefined) return 1
+          if (bv === undefined) return -1
+          return sortBy === 'vacuum-asc' ? av - bv : bv - av
+        }
+        default:
+          return 0
+      }
+    })
+    return sorted
+  }, [sensors, activeSiteId, activeCategory, statusFilter, sortBy])
 
   const openSensor = sensors.find((s) => s.id === openSensorId) ?? null
 
@@ -152,20 +208,14 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        <div className="px-3 sm:px-6 py-3 border-b border-line flex gap-1 overflow-x-auto">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setStatusFilter(f.value)}
-              className={`shrink-0 text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
-                statusFilter === f.value
-                  ? 'border-sap text-sap bg-sap/10'
-                  : 'border-line text-muted hover:text-text'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="px-3 sm:px-6 py-3 border-b border-line flex gap-2 overflow-x-auto">
+          <Dropdown label="Trier par" options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as SortOption)} />
+          <Dropdown
+            label="Filtrer"
+            options={FILTER_OPTIONS}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as SensorStatus | 'all')}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">

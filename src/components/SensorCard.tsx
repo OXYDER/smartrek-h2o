@@ -14,6 +14,13 @@ function formatDateTime(iso: string) {
   })
 }
 
+const STATUS_BORDER: Record<string, string> = {
+  online: 'var(--color-lime)',
+  alarm: 'var(--color-danger)',
+  offline: 'var(--color-danger)',
+  warning: 'var(--color-syrup)',
+}
+
 export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => void }) {
   const status = getSensorStatus(sensor)
   const hasAlarm = sensor.channels.some(isChannelAlarming)
@@ -23,7 +30,8 @@ export function SensorCard({ sensor, onOpen }: { sensor: Sensor; onOpen: () => v
   return (
     <button
       onClick={onOpen}
-      className="group relative text-left rounded-lg border border-line bg-panel hover:bg-panel-raised transition-colors p-4 flex flex-col gap-3"
+      style={{ borderLeftColor: STATUS_BORDER[status], borderLeftWidth: 3 }}
+      className="group relative text-left rounded-lg border border-line bg-panel hover:bg-panel-raised hover:shadow-[0_0_20px_-4px_var(--color-sap)] transition-all p-4 flex flex-col gap-3"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">

@@ -108,7 +108,10 @@ export function Sidebar({
       >
         <div className="p-4 border-b border-line flex items-start justify-between gap-2">
           <div>
-            <p className="font-display font-semibold text-lg leading-tight tracking-tight">
+            <p
+              className="font-display font-semibold text-lg leading-tight tracking-tight"
+              style={{ textShadow: '0 0 18px rgba(41,171,226,0.35)' }}
+            >
               h<span className="text-sap">2</span>o <span className="text-muted font-normal text-base">smartrek</span>
             </p>
             <p className="text-xs font-mono text-muted">Division Érablière</p>

@@ -198,17 +198,6 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         onLogout={onLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        viewMode={viewMode}
-        onShowMap={() => {
-          setActiveSiteId(null)
-          setActiveCategory(null)
-          setViewMode('map')
-        }}
-        onShowSiteMap={(siteId) => {
-          setActiveSiteId(siteId)
-          setActiveCategory(null)
-          setViewMode('map')
-        }}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">

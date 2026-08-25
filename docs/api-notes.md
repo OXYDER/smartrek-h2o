@@ -189,10 +189,14 @@ En plus de `type: 5` (passerelle) et `type: 0` (capteur de vide) :
   bas).
 - **`type: 2`** — « A-Link Valve » — le vrai **contrôle à distance**, 2
   canaux relais (`Channel 1`/`Channel 2`, interrupteur on/off dans
-  l'app). Un seul exemple capturé (`status: 3` = « Dead node », les 2
-  canaux à `0`/éteint) — pas assez de variation pour repérer les octets
-  qui encodent leur état ; il faudrait un exemple avec au moins un canal
-  allumé.
+  l'app). Un seul exemple capturé (`status: 3` = « Dead node » — et
+  `rest[0]` du `dats` vaut aussi `3`, même pattern que le vide/niveau où
+  le premier octet reflète le statut). Les 2 canaux à `0`/éteint — pas
+  assez de variation pour repérer les octets qui encodent leur état, ni
+  pour trouver une éventuelle batterie (formule `×4-261` testée sur tout
+  le payload de 37 octets, aucun candidat plausible — probablement une
+  électrovanne alimentée sur secteur, sans batterie). Bloqué tant qu'on
+  n'a pas un exemple avec au moins un canal allumé.
 - **`type: 10`** — **répéteur radio** (relais réseau, ex. `répét 1`),
   pas un capteur de mesure. Payload de 11 octets.
 

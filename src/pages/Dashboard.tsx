@@ -314,6 +314,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 setActiveCategory(null)
                 setShowingMap(false)
               }}
+              onPlaceSite={async (siteId, lat, lng) => {
+                const updated = await smartrekClient.updateSite(siteId, { location: `${lat}, ${lng}` })
+                if (updated) {
+                  setSites((prev) => prev.map((s) => (s.id === siteId ? updated : s)))
+                }
+              }}
             />
           ) : loading ? (
             <p className="text-muted font-mono text-sm">Chargement…</p>

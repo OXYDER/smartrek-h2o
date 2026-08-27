@@ -124,7 +124,7 @@ export function Sidebar({
               className="w-full h-auto object-contain"
               style={{ filter: 'drop-shadow(0 0 12px rgba(41,171,226,0.35))' }}
             />
-            <p className="text-xs font-mono font-bold text-muted mt-2">Client Smartrek H2O</p>
+            <p className="text-xs font-mono font-bold text-muted mt-2 text-center">Client Smartrek H2O</p>
           </div>
           <button
             onClick={onClose}

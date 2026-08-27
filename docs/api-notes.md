@@ -367,25 +367,58 @@ pour les deux usages.
 ## Fonctionnalité locale — persistance séparée de Smartrek
 
 L'app a maintenant son propre petit serveur (`server/index.js`, Express)
-avec sa propre base de données (fichiers JSON sur un volume Docker
-persisté). Deux systèmes complètement séparés :
+avec sa propre base de données. **Migré vers PostgreSQL, multi-client** —
+voir section suivante pour le détail.
+
 - **Smartrek** : toujours la source des lectures live (boot/refresh),
   jamais écrit — on ne modifie jamais rien chez eux.
 - **Notre serveur** : stocke seulement notre config locale (seuils/
-  alarmes, différentiel, notes, renommages de capteurs/sites) — jamais
-  lu ni écrit par Smartrek.
+  alarmes, différentiel, notes, renommages) et l'historique — jamais lu
+  ni écrit par Smartrek.
 
-À chaque chargement/actualisation, on fusionne les deux : lectures
-fraîches de Smartrek + notre config appliquée par-dessus
-(`src/api/overlayClient.ts::applyOverlay()`). Chaque écriture locale
-(seuil, différentiel, notes, renommage) persiste sur notre serveur en
-plus de la mise à jour en mémoire, donc ça survit maintenant aux
-rechargements de page et aux redéploiements.
+## Fonctionnalité locale — PostgreSQL multi-client
 
-Docker : le conteneur ne sert plus via nginx — c'est Node/Express qui
-sert à la fois l'API et le frontend buildé (un seul processus, un seul
-conteneur, plus simple à déployer). Un volume Docker nommé
-(`smartrek-h2o-data`) persiste `/data` entre les redéploiements.
+Passage du stockage JSON fichier à **PostgreSQL**, avec **partition par
+client** — chaque client Smartrek différent (compte différent) a ses
+données complètement isolées des autres, sans construire notre propre
+système de comptes : on utilise le `user._id` que Smartrek retourne à
+CHAQUE client à SA connexion comme `tenant_id`, envoyé dans l'en-tête
+`X-Tenant-Id` sur chaque requête vers notre serveur (voir
+`src/api/overlayClient.ts`).
+
+**Schéma** (`server/db.js`) :
+- `sensor_overlay`, `channel_overlay`, `site_overlay` — config locale,
+  toutes avec `tenant_id`.
+- `channel_history` — historique brut, fenêtre de 14 jours.
+- `channel_history_hourly` — agrégats horaires (min/max/moy) après
+  rollup, pour l'historique long terme sans croissance illimitée. Un
+  job tourne chaque heure côté serveur pour condenser le brut > 14 jours
+  et le supprimer.
+- `alarm_events` — **événements** d'alarme (pas des points de lecture) :
+  une ligne par épisode continu où un canal dépasse son seuil, avec
+  heure de début/fin/pic. C'est ce qui permet de compter de vraies
+  fuites plutôt que des lectures individuelles. Détecté automatiquement
+  côté serveur à chaque lot d'historique reçu (comparaison avec les
+  seuils déjà configurés dans `channel_overlay`).
+
+**Infrastructure** : nouveau service `smartrek-h2o-db` (postgres:16-alpine)
+dans `docker-compose.yml`, volume persisté séparé
+(`smartrek-h2o-pgdata`). Le mot de passe Postgres se configure via la
+variable d'env `POSTGRES_PASSWORD` sur le NAS (défaut faible si absente
+— à définir explicitement en prod).
+
+## Fonctionnalité locale — statistiques de fuites vacuum
+
+Nouvelle section dans la page Statistiques (`src/components/VacuumLeakStats.tsx`),
+alimentée par les `alarm_events` :
+- Résumé : nombre de fuites, durée totale, fuites en cours, heure critique.
+- Fuites par heure du jour (0h-23h) — pour repérer les heures critiques.
+- Jour (6h-19h) vs Nuit (20h-5h).
+- Lignes (capteurs) les plus problématiques, classées par nombre de fuites.
+- Chronologie à granularité minute/heure/jour.
+- Sélecteur de période : 24h / 7 jours / 30 jours.
+
+Endpoints serveur : `GET /api/stats/summary|by-hour-of-day|by-line|day-night|timeline`.
 
 ## Fonctionnalité locale — temps réel
 

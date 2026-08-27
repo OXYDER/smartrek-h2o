@@ -1,49 +1,24 @@
 import express from 'express'
-import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import {
+  migrate,
+  getOverlay,
+  upsertSensorOverlay,
+  deleteSensorOverlay,
+  upsertSiteOverlay,
+  recordHistoryBatch,
+  getChannelHistory,
+  rollupOldHistory,
+  getLeaksByHourOfDay,
+  getLeaksByLine,
+  getLeaksDayNight,
+  getLeaksTimeline,
+  getLeaksSummary,
+} from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = process.env.DATA_DIR || '/data'
-const OVERLAY_PATH = path.join(DATA_DIR, 'overlay.json')
-const HISTORY_PATH = path.join(DATA_DIR, 'history.json')
 const STATIC_DIR = path.join(__dirname, '..', 'dist')
-
-const HISTORY_MIN_INTERVAL_MS = 5 * 60 * 1000 // n'enregistre pas plus d'1 point/5min si la valeur n'a pas changé
-const HISTORY_MAX_POINTS = 2000 // par canal — évite une croissance illimitée
-
-function ensureDataDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true })
-}
-
-function loadJson(filePath, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
-  } catch {
-    return fallback
-  }
-}
-
-function saveJson(filePath, data) {
-  ensureDataDir()
-  fs.writeFileSync(filePath, JSON.stringify(data))
-}
-
-function loadOverlay() {
-  return loadJson(OVERLAY_PATH, { sensors: {}, sites: {} })
-}
-
-function saveOverlay(overlay) {
-  saveJson(OVERLAY_PATH, overlay)
-}
-
-function loadHistory() {
-  return loadJson(HISTORY_PATH, {})
-}
-
-function saveHistory(history) {
-  saveJson(HISTORY_PATH, history)
-}
 
 const app = express()
 app.use(express.json())
@@ -52,72 +27,134 @@ app.get('/health', (req, res) => {
   res.type('text/plain').send('ok\n')
 })
 
-// ---- Config locale (seuils, différentiel, notes, renommages) ----
-// Séparée de Smartrek : jamais renvoyée à leur API, jamais lue depuis
-// leur boot — uniquement notre propre couche de config par-dessus leurs
-// données en direct.
+// Chaque client Smartrek différent = un tenant_id différent (le user._id
+// que Smartrek retourne à leur connexion — voir src/api/auth.ts). Toutes
+// les routes qui suivent exigent cet en-tête pour isoler les données.
+function requireTenant(req, res, next) {
+  const tenantId = req.header('X-Tenant-Id')
+  if (!tenantId) return res.status(400).json({ error: 'En-tête X-Tenant-Id manquant.' })
+  req.tenantId = tenantId
+  next()
+}
 
-app.get('/api/overlay', (req, res) => {
-  res.json(loadOverlay())
-})
+// ---- Config locale ----
 
-app.put('/api/overlay/sensor/:id', (req, res) => {
-  const overlay = loadOverlay()
-  const existing = overlay.sensors[req.params.id] || {}
-  const patch = req.body || {}
-  const mergedChannels = { ...(existing.channels || {}) }
-  if (patch.channels) {
-    for (const [chId, chPatch] of Object.entries(patch.channels)) {
-      mergedChannels[chId] = { ...(mergedChannels[chId] || {}), ...chPatch }
-    }
+app.get('/api/overlay', requireTenant, async (req, res) => {
+  try {
+    res.json(await getOverlay(req.tenantId))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de lecture de la config locale.' })
   }
-  overlay.sensors[req.params.id] = { ...existing, ...patch, channels: mergedChannels }
-  saveOverlay(overlay)
-  res.json(overlay.sensors[req.params.id])
 })
 
-app.delete('/api/overlay/sensor/:id', (req, res) => {
-  const overlay = loadOverlay()
-  delete overlay.sensors[req.params.id]
-  saveOverlay(overlay)
-  res.json({ ok: true })
+app.put('/api/overlay/sensor/:id', requireTenant, async (req, res) => {
+  try {
+    await upsertSensorOverlay(req.tenantId, req.params.id, req.body || {})
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de sauvegarde.' })
+  }
 })
 
-app.put('/api/overlay/site/:id', (req, res) => {
-  const overlay = loadOverlay()
-  overlay.sites[req.params.id] = { ...(overlay.sites[req.params.id] || {}), ...req.body }
-  saveOverlay(overlay)
-  res.json(overlay.sites[req.params.id])
+app.delete('/api/overlay/sensor/:id', requireTenant, async (req, res) => {
+  try {
+    await deleteSensorOverlay(req.tenantId, req.params.id)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de suppression.' })
+  }
+})
+
+app.put('/api/overlay/site/:id', requireTenant, async (req, res) => {
+  try {
+    await upsertSiteOverlay(req.tenantId, req.params.id, req.body || {})
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de sauvegarde.' })
+  }
 })
 
 // ---- Historique ----
-// On accumule nous-mêmes à partir de maintenant, puisque Smartrek ne
-// retourne aucun historique (endpoint Nodes/query toujours vide).
 
-app.post('/api/history/batch', (req, res) => {
-  const points = Array.isArray(req.body?.points) ? req.body.points : []
-  const history = loadHistory()
-  for (const { channelId, t, v } of points) {
-    if (!channelId || typeof t !== 'number' || typeof v !== 'number') continue
-    if (!history[channelId]) history[channelId] = []
-    const arr = history[channelId]
-    const last = arr[arr.length - 1]
-    const shouldLog = !last || last.v !== v || t - last.t >= HISTORY_MIN_INTERVAL_MS
-    if (shouldLog) {
-      arr.push({ t, v })
-      if (arr.length > HISTORY_MAX_POINTS) arr.shift()
-    }
+app.post('/api/history/batch', requireTenant, async (req, res) => {
+  try {
+    const points = Array.isArray(req.body?.points) ? req.body.points : []
+    await recordHistoryBatch(req.tenantId, points)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "Erreur d'enregistrement de l'historique." })
   }
-  saveHistory(history)
-  res.json({ ok: true })
 })
 
-app.get('/api/history/:channelId', (req, res) => {
-  const history = loadHistory()
-  const since = req.query.since ? Number(req.query.since) : null
-  let points = history[req.params.channelId] || []
-  if (since) points = points.filter((p) => p.t >= since)
-  res.json(points)
+app.get('/api/history/:channelId', requireTenant, async (req, res) => {
+  try {
+    const since = req.query.since ? Number(req.query.since) : undefined
+    res.json(await getChannelHistory(req.tenantId, req.params.channelId, since))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "Erreur de lecture de l'historique." })
+  }
+})
+
+// ---- Statistiques (fuites/écarts vacuum) ----
+// `days` en query param (défaut 7). Toutes ces routes s'appuient sur les
+// `alarm_events` détectés automatiquement à chaque lot d'historique reçu.
+
+function sinceMsFromQuery(req, defaultDays = 7) {
+  const days = req.query.days ? Number(req.query.days) : defaultDays
+  return Date.now() - days * 24 * 60 * 60 * 1000
+}
+
+app.get('/api/stats/summary', requireTenant, async (req, res) => {
+  try {
+    res.json(await getLeaksSummary(req.tenantId, sinceMsFromQuery(req)))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de calcul des statistiques.' })
+  }
+})
+
+app.get('/api/stats/by-hour-of-day', requireTenant, async (req, res) => {
+  try {
+    res.json(await getLeaksByHourOfDay(req.tenantId, sinceMsFromQuery(req)))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de calcul des statistiques.' })
+  }
+})
+
+app.get('/api/stats/by-line', requireTenant, async (req, res) => {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 15
+    res.json(await getLeaksByLine(req.tenantId, sinceMsFromQuery(req), limit))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de calcul des statistiques.' })
+  }
+})
+
+app.get('/api/stats/day-night', requireTenant, async (req, res) => {
+  try {
+    res.json(await getLeaksDayNight(req.tenantId, sinceMsFromQuery(req)))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de calcul des statistiques.' })
+  }
+})
+
+app.get('/api/stats/timeline', requireTenant, async (req, res) => {
+  try {
+    const bucket = req.query.bucket || 'hour'
+    res.json(await getLeaksTimeline(req.tenantId, sinceMsFromQuery(req), bucket))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Erreur de calcul des statistiques.' })
+  }
 })
 
 // ---- Sert le frontend buildé ----
@@ -127,6 +164,22 @@ app.get('*', (req, res) => {
 })
 
 const PORT = process.env.PORT || 80
-app.listen(PORT, () => {
-  console.log(`smartrek-h2o server sur le port ${PORT}, données dans ${DATA_DIR}`)
+
+async function start() {
+  await migrate()
+  console.log('Schéma PostgreSQL prêt.')
+
+  rollupOldHistory().catch((err) => console.error('Erreur rollup initial:', err))
+  setInterval(() => {
+    rollupOldHistory().catch((err) => console.error('Erreur rollup:', err))
+  }, 60 * 60 * 1000)
+
+  app.listen(PORT, () => {
+    console.log(`smartrek-h2o server sur le port ${PORT}`)
+  })
+}
+
+start().catch((err) => {
+  console.error('Échec du démarrage du serveur (connexion PostgreSQL ?) :', err)
+  process.exit(1)
 })

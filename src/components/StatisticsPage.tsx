@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Sensor } from '../types/sensor'
 import { getEffectiveStatus } from '../lib/sensorStatus'
 import { HistoryChart } from './HistoryChart'
+import { VacuumLeakStats } from './VacuumLeakStats'
 
 interface Props {
   sensors: Sensor[]
@@ -48,6 +49,8 @@ export function StatisticsPage({ sensors }: Props) {
           <StatCard label="Batterie moy." value={avgBattery !== null ? `${avgBattery}%` : '—'} />
         </div>
       </div>
+
+      <VacuumLeakStats sensors={sensors} />
 
       <div className="flex flex-col gap-3">
         <h3 className="font-display text-sm tracking-wide text-muted uppercase">Historique par canal</h3>

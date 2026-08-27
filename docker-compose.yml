@@ -5,8 +5,11 @@ services:
     restart: unless-stopped
     ports:
       - "8091:80"
-    volumes:
-      - smartrek-h2o-data:/data
+    environment:
+      - DATABASE_URL=postgres://smartrek:${POSTGRES_PASSWORD:-smartrek}@smartrek-h2o-db:5432/smartrek_h2o
+    depends_on:
+      smartrek-h2o-db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
       interval: 30s
@@ -17,5 +20,24 @@ services:
       - "com.resotik.project=smartrek-h2o"
       - "com.resotik.domain=h2o.resotik.ca"
 
+  smartrek-h2o-db:
+    image: postgres:16-alpine
+    container_name: smartrek-h2o-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=smartrek
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-smartrek}
+      - POSTGRES_DB=smartrek_h2o
+    volumes:
+      - smartrek-h2o-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartrek -d smartrek_h2o"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "com.resotik.project=smartrek-h2o"
+
 volumes:
-  smartrek-h2o-data:
+  smartrek-h2o-pgdata:

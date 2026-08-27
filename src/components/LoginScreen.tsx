@@ -35,7 +35,10 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
       >
         <div>
           <img src={h2oInnovationLogo} alt="H2O Innovation" className="w-full h-auto object-contain" />
-          <p className="text-sm text-muted font-mono mt-2">Client Smartrek H2O · Connexion</p>
+          <div className="mt-2 text-center">
+            <p className="text-sm font-mono font-bold text-muted">Client Smartrek H2O</p>
+            <p className="text-sm font-mono text-sap text-left">Connexion</p>
+          </div>
         </div>
 
         <label className="flex flex-col gap-1 text-sm">

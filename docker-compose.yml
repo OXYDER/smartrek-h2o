@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     ports:
       - "8091:80"
+    volumes:
+      - smartrek-h2o-data:/data
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
       interval: 30s
@@ -14,3 +16,6 @@ services:
     labels:
       - "com.resotik.project=smartrek-h2o"
       - "com.resotik.domain=h2o.resotik.ca"
+
+volumes:
+  smartrek-h2o-data:

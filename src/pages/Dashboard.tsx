@@ -76,14 +76,25 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     setBootError(smartrekClient.getBootError())
   }
 
+  async function silentRefresh() {
+    await smartrekClient.refreshBoot()
+    await loadData()
+  }
+
   useEffect(() => {
     loadData().finally(() => setLoading(false))
   }, [])
 
+  // Actualisation en direct, en arrière-plan — sans indicateur visuel, sans
+  // que l'utilisateur ait besoin de cliquer sur "Actualiser".
+  useEffect(() => {
+    const interval = setInterval(silentRefresh, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
   async function handleRefresh() {
     setRefreshing(true)
-    await smartrekClient.refreshBoot()
-    await loadData()
+    await silentRefresh()
     setRefreshing(false)
   }
 

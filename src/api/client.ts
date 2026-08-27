@@ -1,12 +1,14 @@
-import type { Sensor, Site, ThresholdRule, SensorChannel, ChannelKind } from '../types/sensor'
+import type { Sensor, Site, ThresholdRule, SensorChannel, ChannelKind, PortDifferentialConfig } from '../types/sensor'
 import { fetchBoot } from './realBoot'
+import { fetchOverlay, saveSensorOverlay, saveSiteOverlay, applyOverlay, logHistory } from './overlayClient'
 
 /**
- * Couche d'accès aux données — branchée sur le vrai /boot de Smartrek H2O.
- * Les lectures (sites/capteurs) viennent du serveur ; les écritures
- * (CRUD seuils/canaux/notifications/renommage) restent en mémoire locale
- * pour l'instant car les endpoints d'écriture réels n'ont pas encore été
- * capturés — voir docs/api-notes.md, section « À capturer encore ».
+ * Couche d'accès aux données — lectures branchées sur le vrai /boot de
+ * Smartrek H2O, écritures locales (seuils/différentiel/notes/renommages)
+ * persistées sur NOTRE propre serveur (server/index.js), jamais renvoyées
+ * à Smartrek. Les deux systèmes restent complètement séparés : à chaque
+ * rafraîchissement, on prend les lectures fraîches de Smartrek et on
+ * applique notre config locale par-dessus.
  */
 
 const LATENCY_MS = 150
@@ -31,11 +33,13 @@ async function ensureBootLoaded(): Promise<void> {
 
 async function refreshBoot(): Promise<void> {
   try {
-    const result = await fetchBoot()
-    sites = result.sites
-    sensors = result.sensors
+    const [result, overlay] = await Promise.all([fetchBoot(), fetchOverlay()])
+    const merged = applyOverlay(result.sites, result.sensors, overlay)
+    sites = merged.sites
+    sensors = merged.sensors
     bootLoaded = true
     bootError = null
+    logHistory(sensors) // best-effort, ne bloque pas le chargement
   } catch (err) {
     bootError = err instanceof Error ? err.message : 'Erreur inconnue lors du chargement des données.'
     bootLoaded = true // évite de re-fetch en boucle ; refreshBoot() manuel pour réessayer
@@ -53,10 +57,10 @@ export const smartrekClient = {
   },
 
   async updateSite(id: string, patch: Partial<Site>): Promise<Site | undefined> {
-    // TODO(réel): endpoint de renommage de la passerelle — pas encore capturé, modif locale seulement
     const idx = sites.findIndex((s) => s.id === id)
     if (idx === -1) return delay(undefined)
     sites[idx] = { ...sites[idx], ...patch }
+    saveSiteOverlay(id, patch) // best-effort, persisté sur notre serveur, jamais chez Smartrek
     return delay(sites[idx])
   },
 
@@ -79,7 +83,7 @@ export const smartrekClient = {
     siteId: string
     channels: { label: string; kind: ChannelKind; unit: string }[]
   }): Promise<Sensor> {
-    // TODO(réel): endpoint de création de capteur — pas encore capturé
+    // Capteur purement local (pas de correspondance Smartrek) — non persisté sur notre serveur pour l'instant.
     const sensor: Sensor = {
       id: uid('sn'),
       name: input.name,
@@ -100,13 +104,29 @@ export const smartrekClient = {
   },
 
   async updateSensor(id: string, patch: Partial<Sensor>): Promise<Sensor | undefined> {
-    // TODO(réel): PATCH /api/sensors/:id
     sensors = sensors.map((s) => (s.id === id ? { ...s, ...patch } : s))
+
+    // Persiste sur notre serveur : nom, notes, et/ou tableau de canaux
+    // complet (converti en overlay par canal — seuils + différentiel).
+    const overlayPatch: {
+      name?: string
+      notes?: string
+      channels?: Record<string, { thresholds?: ThresholdRule[]; differential?: PortDifferentialConfig | null }>
+    } = {}
+    if (patch.name !== undefined) overlayPatch.name = patch.name
+    if (patch.notes !== undefined) overlayPatch.notes = patch.notes
+    if (patch.channels) {
+      overlayPatch.channels = {}
+      for (const c of patch.channels) {
+        overlayPatch.channels[c.id] = { thresholds: c.thresholds, differential: c.differential ?? null }
+      }
+    }
+    if (Object.keys(overlayPatch).length > 0) saveSensorOverlay(id, overlayPatch)
+
     return delay(sensors.find((s) => s.id === id))
   },
 
   async deleteSensor(id: string): Promise<void> {
-    // TODO(réel): DELETE /api/sensors/:id
     sensors = sensors.filter((s) => s.id !== id)
     return delay(undefined)
   },
@@ -115,7 +135,6 @@ export const smartrekClient = {
     sensorId: string,
     channel: { label: string; kind: ChannelKind; unit: string }
   ): Promise<Sensor | undefined> {
-    // TODO(réel): endpoint d'ajout de canal — pas encore capturé
     sensors = sensors.map((s) => {
       if (s.id !== sensorId) return s
       const newChannel: SensorChannel = {
@@ -137,7 +156,6 @@ export const smartrekClient = {
     channelId: string,
     patch: Partial<Pick<SensorChannel, 'label' | 'kind' | 'unit'>>
   ): Promise<Sensor | undefined> {
-    // TODO(réel): PATCH /api/sensors/:id/channels/:channelId
     sensors = sensors.map((s) => {
       if (s.id !== sensorId) return s
       return { ...s, channels: s.channels.map((c) => (c.id === channelId ? { ...c, ...patch } : c)) }
@@ -146,19 +164,14 @@ export const smartrekClient = {
   },
 
   async deleteChannel(sensorId: string, channelId: string): Promise<Sensor | undefined> {
-    // TODO(réel): DELETE /api/sensors/:id/channels/:channelId
     sensors = sensors.map((s) =>
       s.id === sensorId ? { ...s, channels: s.channels.filter((c) => c.id !== channelId) } : s
     )
     return delay(sensors.find((s) => s.id === sensorId))
   },
 
-  async upsertThreshold(
-    sensorId: string,
-    channelId: string,
-    rule: ThresholdRule
-  ): Promise<Sensor | undefined> {
-    // TODO(réel): PUT /api/sensors/:id/channels/:channelId/thresholds/:ruleId
+  async upsertThreshold(sensorId: string, channelId: string, rule: ThresholdRule): Promise<Sensor | undefined> {
+    let updatedThresholds: ThresholdRule[] = []
     sensors = sensors.map((s) => {
       if (s.id !== sensorId) return s
       return {
@@ -169,28 +182,29 @@ export const smartrekClient = {
           const thresholds = exists
             ? c.thresholds.map((t) => (t.id === rule.id ? rule : t))
             : [...c.thresholds, { ...rule, id: rule.id || uid('th') }]
+          updatedThresholds = thresholds
           return { ...c, thresholds }
         }),
       }
     })
+    saveSensorOverlay(sensorId, { channels: { [channelId]: { thresholds: updatedThresholds } } })
     return delay(sensors.find((s) => s.id === sensorId))
   },
 
-  async deleteThreshold(
-    sensorId: string,
-    channelId: string,
-    ruleId: string
-  ): Promise<Sensor | undefined> {
-    // TODO(réel): DELETE /api/sensors/:id/channels/:channelId/thresholds/:ruleId
+  async deleteThreshold(sensorId: string, channelId: string, ruleId: string): Promise<Sensor | undefined> {
+    let updatedThresholds: ThresholdRule[] = []
     sensors = sensors.map((s) => {
       if (s.id !== sensorId) return s
       return {
         ...s,
-        channels: s.channels.map((c) =>
-          c.id === channelId ? { ...c, thresholds: c.thresholds.filter((t) => t.id !== ruleId) } : c
-        ),
+        channels: s.channels.map((c) => {
+          if (c.id !== channelId) return c
+          updatedThresholds = c.thresholds.filter((t) => t.id !== ruleId)
+          return { ...c, thresholds: updatedThresholds }
+        }),
       }
     })
+    saveSensorOverlay(sensorId, { channels: { [channelId]: { thresholds: updatedThresholds } } })
     return delay(sensors.find((s) => s.id === sensorId))
   },
 }

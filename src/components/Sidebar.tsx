@@ -117,11 +117,11 @@ export function Sidebar({
         } md:translate-x-0`}
       >
         <div className="p-4 border-b border-line flex items-start justify-between gap-2">
-          <div>
+          <div className="flex-1 min-w-0">
             <img
               src={h2oInnovationLogo}
               alt="H2O Innovation"
-              className="h-7 w-auto object-contain"
+              className="w-full h-auto object-contain"
               style={{ filter: 'drop-shadow(0 0 12px rgba(41,171,226,0.35))' }}
             />
             <p className="text-xs font-mono text-muted mt-1">Client Smartrek H2O</p>

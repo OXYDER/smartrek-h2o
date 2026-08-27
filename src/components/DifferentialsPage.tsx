@@ -17,6 +17,15 @@ interface DiffEntry {
   refChannel?: SensorChannel
 }
 
+/** Fond de ligne selon l'ampleur de l'écart, peu importe le sens (+/-) :
+ * vert < 1, jaune entre 1 et 3, rouge >= 3. */
+function severityBackground(diff: number): string {
+  const abs = Math.abs(diff)
+  if (abs >= 3) return 'rgba(225, 69, 61, 0.16)' // rouge (--color-danger)
+  if (abs >= 1) return 'rgba(232, 201, 61, 0.16)' // jaune
+  return 'rgba(140, 224, 76, 0.12)' // vert (--color-lime)
+}
+
 export function DifferentialsPage({ sensors, onOpenSensor, onSensorChange }: Props) {
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null)
   const [draftLabel, setDraftLabel] = useState('')
@@ -75,11 +84,11 @@ export function DifferentialsPage({ sensors, onOpenSensor, onSensorChange }: Pro
           </tr>
         </thead>
         <tbody>
-          {entries.map(({ sensor, channel, diff, refSensor, refChannel }, i) => {
+          {entries.map(({ sensor, channel, diff, refSensor, refChannel }) => {
             const alarming = isChannelDifferentialAlarming(channel, sensors)
             const isEditing = editingChannelId === channel.id
             return (
-              <tr key={channel.id} className={`border-b border-line ${i % 2 === 0 ? 'bg-panel' : 'bg-panel/60'}`}>
+              <tr key={channel.id} className="border-b border-line" style={{ backgroundColor: severityBackground(diff) }}>
                 <td className="px-3 py-2 min-w-[140px]">
                   {isEditing ? (
                     <input

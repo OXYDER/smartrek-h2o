@@ -10,6 +10,112 @@ import { getEffectiveStatus, isChannelAlarming } from '../lib/sensorStatus'
 import { getSensorIconKind } from '../lib/sensorType'
 import { getChannelDifferential, isChannelDifferentialAlarming } from '../lib/differential'
 
+/** Une alarme (seuil + notification) — état local pour le label et le
+ * destinataire, sauvegardé seulement à la sortie du champ. Sans ça,
+ * chaque frappe déclenche un aller-retour réseau qui resynchronise le
+ * champ contrôlé en pleine frappe et fait sauter le curseur. */
+function AlarmRow({
+  rule,
+  onPatch,
+  onRemove,
+}: {
+  rule: ThresholdRule
+  onPatch: (rule: ThresholdRule) => void
+  onRemove: () => void
+}) {
+  const [label, setLabel] = useState(rule.label)
+  const [target, setTarget] = useState(rule.notification?.target ?? '')
+
+  return (
+    <div className="rounded border border-line bg-base p-2 flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 text-xs">
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onBlur={() => label !== rule.label && onPatch({ ...rule, label })}
+          className="flex-1 bg-transparent border-b border-transparent focus:border-line outline-none"
+        />
+        <label className="flex items-center gap-1 font-mono text-muted">
+          Min
+          <input
+            type="number"
+            value={rule.min ?? ''}
+            onChange={(e) => onPatch({ ...rule, min: e.target.value === '' ? undefined : Number(e.target.value) })}
+            className="w-14 bg-panel-raised border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+          />
+        </label>
+        <label className="flex items-center gap-1 font-mono text-muted">
+          Max
+          <input
+            type="number"
+            value={rule.max ?? ''}
+            onChange={(e) => onPatch({ ...rule, max: e.target.value === '' ? undefined : Number(e.target.value) })}
+            className="w-14 bg-panel-raised border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
+          />
+        </label>
+        <input
+          type="checkbox"
+          checked={rule.enabled}
+          onChange={(e) => onPatch({ ...rule, enabled: e.target.checked })}
+          className="accent-sap"
+          title="Alarme active"
+        />
+        <button onClick={onRemove} className="text-muted hover:text-danger px-1">
+          ✕
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs pt-1.5 border-t border-line">
+        <span className="text-muted font-mono uppercase text-[10px] shrink-0">Notifier</span>
+        <select
+          value={rule.notification?.type ?? 'sms'}
+          onChange={(e) =>
+            onPatch({
+              ...rule,
+              notification: {
+                type: e.target.value as 'sms' | 'email' | 'push',
+                target: rule.notification?.target ?? '',
+                enabled: rule.notification?.enabled ?? true,
+              },
+            })
+          }
+          className="bg-panel-raised border border-line rounded px-1.5 py-1 font-mono outline-none"
+        >
+          <option value="sms">SMS</option>
+          <option value="email">Courriel</option>
+          <option value="push">Push</option>
+        </select>
+        <input
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          onBlur={() =>
+            target !== (rule.notification?.target ?? '') &&
+            onPatch({
+              ...rule,
+              notification: {
+                type: rule.notification?.type ?? 'sms',
+                target,
+                enabled: rule.notification?.enabled ?? true,
+              },
+            })
+          }
+          placeholder={rule.notification?.type === 'email' ? 'adresse@courriel.com' : 'Destinataire'}
+          className="flex-1 bg-transparent border-b border-transparent focus:border-line outline-none min-w-0"
+        />
+        {rule.notification && (
+          <input
+            type="checkbox"
+            checked={rule.notification.enabled}
+            onChange={(e) => onPatch({ ...rule, notification: { ...rule.notification!, enabled: e.target.checked } })}
+            className="accent-sap"
+            title="Notification active"
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface Props {
   sensor: Sensor
   allSensors: Sensor[]
@@ -31,6 +137,7 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
   const [notes, setNotes] = useState(sensor.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expandedDiffChannelId, setExpandedDiffChannelId] = useState<string | null>(null)
+  const [diffLabelDraft, setDiffLabelDraft] = useState('')
 
   const status = getEffectiveStatus(sensor, allSensors)
   const tempChannel = sensor.channels.find((c) => c.kind === 'temperature')
@@ -199,107 +306,12 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                         <p className="text-xs text-muted italic">Aucune alarme configurée.</p>
                       )}
                       {channel.thresholds.map((t) => (
-                        <div key={t.id} className="rounded border border-line bg-base p-2 flex flex-col gap-1.5">
-                          <div className="flex items-center gap-2 text-xs">
-                            <input
-                              value={t.label}
-                              onChange={(e) => patchAlarm(channel.id, { ...t, label: e.target.value })}
-                              className="flex-1 bg-transparent border-b border-transparent focus:border-line outline-none"
-                            />
-                            <label className="flex items-center gap-1 font-mono text-muted">
-                              Min
-                              <input
-                                type="number"
-                                value={t.min ?? ''}
-                                onChange={(e) =>
-                                  patchAlarm(channel.id, {
-                                    ...t,
-                                    min: e.target.value === '' ? undefined : Number(e.target.value),
-                                  })
-                                }
-                                className="w-14 bg-panel-raised border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                              />
-                            </label>
-                            <label className="flex items-center gap-1 font-mono text-muted">
-                              Max
-                              <input
-                                type="number"
-                                value={t.max ?? ''}
-                                onChange={(e) =>
-                                  patchAlarm(channel.id, {
-                                    ...t,
-                                    max: e.target.value === '' ? undefined : Number(e.target.value),
-                                  })
-                                }
-                                className="w-14 bg-panel-raised border border-line rounded px-1 py-0.5 outline-none focus:border-sap"
-                              />
-                            </label>
-                            <input
-                              type="checkbox"
-                              checked={t.enabled}
-                              onChange={(e) => patchAlarm(channel.id, { ...t, enabled: e.target.checked })}
-                              className="accent-sap"
-                              title="Alarme active"
-                            />
-                            <button
-                              onClick={() => removeAlarm(channel.id, t.id)}
-                              className="text-muted hover:text-danger px-1"
-                            >
-                              ✕
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs pt-1.5 border-t border-line">
-                            <span className="text-muted font-mono uppercase text-[10px] shrink-0">Notifier</span>
-                            <select
-                              value={t.notification?.type ?? 'sms'}
-                              onChange={(e) =>
-                                patchAlarm(channel.id, {
-                                  ...t,
-                                  notification: {
-                                    type: e.target.value as 'sms' | 'email' | 'push',
-                                    target: t.notification?.target ?? '',
-                                    enabled: t.notification?.enabled ?? true,
-                                  },
-                                })
-                              }
-                              className="bg-panel-raised border border-line rounded px-1.5 py-1 font-mono outline-none"
-                            >
-                              <option value="sms">SMS</option>
-                              <option value="email">Courriel</option>
-                              <option value="push">Push</option>
-                            </select>
-                            <input
-                              value={t.notification?.target ?? ''}
-                              onChange={(e) =>
-                                patchAlarm(channel.id, {
-                                  ...t,
-                                  notification: {
-                                    type: t.notification?.type ?? 'sms',
-                                    target: e.target.value,
-                                    enabled: t.notification?.enabled ?? true,
-                                  },
-                                })
-                              }
-                              placeholder={t.notification?.type === 'email' ? 'adresse@courriel.com' : 'Destinataire'}
-                              className="flex-1 bg-transparent border-b border-transparent focus:border-line outline-none min-w-0"
-                            />
-                            {t.notification && (
-                              <input
-                                type="checkbox"
-                                checked={t.notification.enabled}
-                                onChange={(e) =>
-                                  patchAlarm(channel.id, {
-                                    ...t,
-                                    notification: { ...t.notification!, enabled: e.target.checked },
-                                  })
-                                }
-                                className="accent-sap"
-                                title="Notification active"
-                              />
-                            )}
-                          </div>
-                        </div>
+                        <AlarmRow
+                          key={t.id}
+                          rule={t}
+                          onPatch={(rule) => patchAlarm(channel.id, rule)}
+                          onRemove={() => removeAlarm(channel.id, t.id)}
+                        />
                       ))}
                     </div>
 
@@ -308,14 +320,20 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                       <div className="flex flex-col gap-1.5 pt-1.5 border-t border-line">
                         {!channel.differential ? (
                           <button
-                            onClick={() => setExpandedDiffChannelId(diffExpanded ? null : channel.id)}
+                            onClick={() => {
+                              setDiffLabelDraft('')
+                              setExpandedDiffChannelId(diffExpanded ? null : channel.id)
+                            }}
                             className="text-xs font-mono text-sap hover:underline text-left"
                           >
                             + Différentiel
                           </button>
                         ) : (
                           <button
-                            onClick={() => setExpandedDiffChannelId(diffExpanded ? null : channel.id)}
+                            onClick={() => {
+                              if (!diffExpanded) setDiffLabelDraft(channel.differential?.label ?? '')
+                              setExpandedDiffChannelId(diffExpanded ? null : channel.id)
+                            }}
                             className="text-xs font-mono text-sap hover:underline text-left"
                           >
                             {diffExpanded ? '▾' : '▸'} Différentiel
@@ -331,14 +349,15 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                             <label className="flex flex-col gap-1 text-xs">
                               <span className="text-muted font-mono uppercase">Nom du différentiel</span>
                               <input
-                                value={channel.differential?.label ?? ''}
-                                onChange={(e) => {
+                                value={diffLabelDraft}
+                                onChange={(e) => setDiffLabelDraft(e.target.value)}
+                                onBlur={() => {
                                   if (!channel.differential) return
-                                  patchChannelDifferential(channel.id, { ...channel.differential, label: e.target.value })
+                                  if (diffLabelDraft === (channel.differential.label ?? '')) return
+                                  patchChannelDifferential(channel.id, { ...channel.differential, label: diffLabelDraft })
                                 }}
                                 placeholder="Ex. Ligne principale vs station"
-                                disabled={!channel.differential}
-                                className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap disabled:opacity-40"
+                                className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap"
                               />
                             </label>
                             <label className="flex flex-col gap-1 text-xs">
@@ -356,7 +375,7 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                                   }
                                   const [refSensorId, refPortId] = e.target.value.split('::')
                                   patchChannelDifferential(channel.id, {
-                                    label: channel.differential?.label,
+                                    label: diffLabelDraft || channel.differential?.label,
                                     referenceSensorId: refSensorId,
                                     referencePortId: refPortId,
                                     threshold: channel.differential?.threshold,

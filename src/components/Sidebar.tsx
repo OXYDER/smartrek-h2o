@@ -25,6 +25,8 @@ interface Props {
   onClose: () => void
   showingDifferentials: boolean
   onShowDifferentials: () => void
+  showingStatistics: boolean
+  onShowStatistics: () => void
 }
 
 function CategoryRow({
@@ -75,6 +77,8 @@ export function Sidebar({
   onClose,
   showingDifferentials,
   onShowDifferentials,
+  showingStatistics,
+  onShowStatistics,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -137,7 +141,9 @@ export function Sidebar({
               onClose()
             }}
             className={`text-left text-sm px-3 py-2 rounded transition-colors ${
-              !showingDifferentials && activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+              !showingDifferentials && !showingStatistics && activeSiteId === null
+                ? 'bg-panel-raised text-sap'
+                : 'text-muted hover:text-text'
             }`}
           >
             Tous les sites
@@ -152,6 +158,17 @@ export function Sidebar({
             }`}
           >
             Différentiels
+          </button>
+          <button
+            onClick={() => {
+              onShowStatistics()
+              onClose()
+            }}
+            className={`text-left text-sm px-3 py-2 rounded transition-colors ${
+              showingStatistics ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+            }`}
+          >
+            Statistiques
           </button>
           {sites.map((site, i) => {
             const siteSensors = sensors.filter((s) => s.siteId === site.id)

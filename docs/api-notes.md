@@ -364,6 +364,53 @@ directement depuis la page Différentiels. `withUpdatedDifferential()`
 dans `src/lib/differential.ts` centralise le patch du tableau `channels`
 pour les deux usages.
 
+## Fonctionnalité locale — persistance séparée de Smartrek
+
+L'app a maintenant son propre petit serveur (`server/index.js`, Express)
+avec sa propre base de données (fichiers JSON sur un volume Docker
+persisté). Deux systèmes complètement séparés :
+- **Smartrek** : toujours la source des lectures live (boot/refresh),
+  jamais écrit — on ne modifie jamais rien chez eux.
+- **Notre serveur** : stocke seulement notre config locale (seuils/
+  alarmes, différentiel, notes, renommages de capteurs/sites) — jamais
+  lu ni écrit par Smartrek.
+
+À chaque chargement/actualisation, on fusionne les deux : lectures
+fraîches de Smartrek + notre config appliquée par-dessus
+(`src/api/overlayClient.ts::applyOverlay()`). Chaque écriture locale
+(seuil, différentiel, notes, renommage) persiste sur notre serveur en
+plus de la mise à jour en mémoire, donc ça survit maintenant aux
+rechargements de page et aux redéploiements.
+
+Docker : le conteneur ne sert plus via nginx — c'est Node/Express qui
+sert à la fois l'API et le frontend buildé (un seul processus, un seul
+conteneur, plus simple à déployer). Un volume Docker nommé
+(`smartrek-h2o-data`) persiste `/data` entre les redéploiements.
+
+## Fonctionnalité locale — temps réel
+
+Actualisation automatique en arrière-plan toutes les 15 secondes, sans
+aucun indicateur visuel de chargement — les données se mettent à jour
+silencieusement partout dans l'app. Le bouton "Actualiser" reste
+disponible pour un rafraîchissement immédiat à la demande.
+
+## Fonctionnalité locale — historique et page Statistiques
+
+**Smartrek ne fournit aucun historique** (`Nodes/query` toujours vide,
+confirmé plus tôt) — donc on accumule nous-mêmes, à partir de
+maintenant : à chaque actualisation (auto ou manuelle), les lectures de
+chaque canal sont envoyées à notre serveur qui les enregistre (dédupliqué
+— ne stocke un nouveau point que si la valeur a changé, ou au minimum
+toutes les 5 min, plafonné à 2000 points par canal pour éviter une
+croissance illimitée).
+
+Lien « Statistiques » dans la sidebar, sous « Différentiels » :
+- Vue d'ensemble en direct (capteurs total/en ligne/hors ligne/alarmes,
+  batterie moyenne) — se met à jour toute seule avec le reste de l'app.
+- Sélecteur capteur → canal, puis graphique d'historique complet (axes,
+  grille, dégradé) — `src/components/HistoryChart.tsx`, alimenté par
+  `GET /api/history/:channelId`.
+
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
 - [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)

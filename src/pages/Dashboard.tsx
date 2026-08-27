@@ -7,6 +7,7 @@ import { SensorTable } from '../components/SensorTable'
 import { SitesMap } from '../components/SitesMap'
 import { SiteSensorsMap } from '../components/SiteSensorsMap'
 import { DifferentialsPage } from '../components/DifferentialsPage'
+import { StatisticsPage } from '../components/StatisticsPage'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
@@ -68,6 +69,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showingDifferentials, setShowingDifferentials] = useState(false)
+  const [showingStatistics, setShowingStatistics] = useState(false)
 
   async function loadData() {
     const [s, se] = await Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()])
@@ -203,18 +205,28 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           setActiveSiteId(null)
           setActiveCategory(null)
           setShowingDifferentials(false)
+          setShowingStatistics(false)
         }}
         onSelectCategory={(siteId, categoryId) => {
           setActiveSiteId(siteId)
           setActiveCategory(categoryId)
           setShowingDifferentials(false)
+          setShowingStatistics(false)
         }}
         onRenameSite={renameSite}
         onLogout={onLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         showingDifferentials={showingDifferentials}
-        onShowDifferentials={() => setShowingDifferentials(true)}
+        onShowDifferentials={() => {
+          setShowingDifferentials(true)
+          setShowingStatistics(false)
+        }}
+        showingStatistics={showingStatistics}
+        onShowStatistics={() => {
+          setShowingStatistics(true)
+          setShowingDifferentials(false)
+        }}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -229,17 +241,19 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <div className="min-w-0">
               <h1 className="font-display text-lg sm:text-2xl truncate">
-                {showingDifferentials
-                  ? 'Différentiels'
-                  : viewMode === 'map' && !activeSiteId
-                    ? 'Carte des passerelles'
-                    : activeSiteId
-                      ? sites.find((s) => s.id === activeSiteId)?.name
-                      : 'Tous les capteurs'}
-                {!showingDifferentials && viewMode === 'map' && activeSiteId && (
+                {showingStatistics
+                  ? 'Statistiques'
+                  : showingDifferentials
+                    ? 'Différentiels'
+                    : viewMode === 'map' && !activeSiteId
+                      ? 'Carte des passerelles'
+                      : activeSiteId
+                        ? sites.find((s) => s.id === activeSiteId)?.name
+                        : 'Tous les capteurs'}
+                {!showingDifferentials && !showingStatistics && viewMode === 'map' && activeSiteId && (
                   <span className="text-muted"> — Carte</span>
                 )}
-                {!showingDifferentials && viewMode !== 'map' && activeCategory && (
+                {!showingDifferentials && !showingStatistics && viewMode !== 'map' && activeCategory && (
                   <span className="text-muted">
                     {' '}
                     —{' '}
@@ -249,7 +263,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 )}
               </h1>
               <p className="text-xs sm:text-sm text-muted font-mono truncate">
-                {showingDifferentials ? (
+                {showingStatistics ? (
+                  'Vue d\'ensemble en direct et historique par canal'
+                ) : showingDifferentials ? (
                   'Tous les écarts configurés, triés par écart décroissant'
                 ) : viewMode === 'map' && !activeSiteId ? (
                   `${sites.length} site${sites.length !== 1 ? 's' : ''}`
@@ -272,7 +288,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               <span className="sm:hidden">↻</span>
               <span className="hidden sm:inline">{refreshing ? 'Actualisation…' : '↻ Actualiser'}</span>
             </button>
-            {!showingDifferentials && (
+            {!showingDifferentials && !showingStatistics && (
               <button
                 onClick={() => setShowNewModal(true)}
                 className="bg-sap text-base text-sm font-medium px-2.5 sm:px-4 py-2 rounded hover:opacity-90 transition-opacity"
@@ -291,7 +307,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {!showingDifferentials && (
+        {!showingDifferentials && !showingStatistics && (
           <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
             {viewMode !== 'map' && (
               <>
@@ -340,7 +356,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
-          {showingDifferentials ? (
+          {showingStatistics ? (
+            <StatisticsPage sensors={sensors} />
+          ) : showingDifferentials ? (
             <DifferentialsPage sensors={sensors} onOpenSensor={setOpenSensorId} onSensorChange={updateSensorInList} />
           ) : viewMode === 'map' && !activeSiteId ? (
             <SitesMap

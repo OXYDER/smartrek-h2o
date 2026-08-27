@@ -3,6 +3,7 @@ import type { Sensor, Site } from '../types/sensor'
 import { SENSOR_CATEGORIES, VACUUM_SUBCATEGORIES, sensorMatchesCategory } from '../lib/sensorCategories'
 import { DeviceIcon, type DeviceIconKind } from './DeviceIcon'
 import { getSiteStatus } from '../lib/sensorStatus'
+import h2oInnovationLogo from '../assets/brand/h2o-innovation-logo.png'
 
 const CATEGORY_ICON: Record<string, DeviceIconKind> = {
   vacuum: 'vacuum',
@@ -117,13 +118,13 @@ export function Sidebar({
       >
         <div className="p-4 border-b border-line flex items-start justify-between gap-2">
           <div>
-            <p
-              className="font-display font-semibold text-lg leading-tight tracking-tight"
-              style={{ textShadow: '0 0 18px rgba(41,171,226,0.35)' }}
-            >
-              h<span className="text-sap">2</span>o <span className="text-muted font-normal text-base">smartrek</span>
-            </p>
-            <p className="text-xs font-mono text-muted">Division Érablière</p>
+            <img
+              src={h2oInnovationLogo}
+              alt="H2O Innovation"
+              className="h-7 w-auto object-contain"
+              style={{ filter: 'drop-shadow(0 0 12px rgba(41,171,226,0.35))' }}
+            />
+            <p className="text-xs font-mono text-muted mt-1">Client Smartrek H2O</p>
           </div>
           <button
             onClick={onClose}

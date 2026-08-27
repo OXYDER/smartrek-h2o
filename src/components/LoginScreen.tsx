@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { login } from '../api/auth'
 import { MapleLeafGlyph } from './MapleLeafGlyph'
+import h2oInnovationLogo from '../assets/brand/h2o-innovation-logo.png'
 
 export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   const [email, setEmail] = useState('')
@@ -33,10 +34,8 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
         className="relative w-full max-w-sm bg-panel/90 backdrop-blur-sm border border-line rounded-lg p-6 flex flex-col gap-4"
       >
         <div>
-          <h1 className="font-display font-semibold text-2xl tracking-tight">
-            h<span className="text-sap">2</span>o <span className="text-muted font-normal">smartrek</span>
-          </h1>
-          <p className="text-sm text-muted font-mono">Division Érablière · Connexion</p>
+          <img src={h2oInnovationLogo} alt="H2O Innovation" className="h-9 w-auto object-contain" />
+          <p className="text-sm text-muted font-mono mt-1">Client Smartrek H2O · Connexion</p>
         </div>
 
         <label className="flex flex-col gap-1 text-sm">

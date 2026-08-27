@@ -329,6 +329,19 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                         {diffExpanded && (
                           <div className="flex flex-col gap-2 pl-1">
                             <label className="flex flex-col gap-1 text-xs">
+                              <span className="text-muted font-mono uppercase">Nom du différentiel</span>
+                              <input
+                                value={channel.differential?.label ?? ''}
+                                onChange={(e) => {
+                                  if (!channel.differential) return
+                                  patchChannelDifferential(channel.id, { ...channel.differential, label: e.target.value })
+                                }}
+                                placeholder="Ex. Ligne principale vs station"
+                                disabled={!channel.differential}
+                                className="bg-base border border-line rounded px-2 py-1 text-sm outline-none focus:border-sap disabled:opacity-40"
+                              />
+                            </label>
+                            <label className="flex flex-col gap-1 text-xs">
                               <span className="text-muted font-mono uppercase">Port de référence</span>
                               <select
                                 value={
@@ -343,6 +356,7 @@ export function SensorDetailPanel({ sensor, allSensors, onClose, onChange, onDel
                                   }
                                   const [refSensorId, refPortId] = e.target.value.split('::')
                                   patchChannelDifferential(channel.id, {
+                                    label: channel.differential?.label,
                                     referenceSensorId: refSensorId,
                                     referencePortId: refPortId,
                                     threshold: channel.differential?.threshold,

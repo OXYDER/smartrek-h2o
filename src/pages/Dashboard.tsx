@@ -6,6 +6,7 @@ import { SensorCard } from '../components/SensorCard'
 import { SensorTable } from '../components/SensorTable'
 import { SitesMap } from '../components/SitesMap'
 import { SiteSensorsMap } from '../components/SiteSensorsMap'
+import { DifferentialsPage } from '../components/DifferentialsPage'
 import { SensorDetailPanel } from '../components/SensorDetailPanel'
 import { NewSensorModal } from '../components/NewSensorModal'
 import { Dropdown } from '../components/Dropdown'
@@ -66,6 +67,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [bootError, setBootError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showingDifferentials, setShowingDifferentials] = useState(false)
 
   async function loadData() {
     const [s, se] = await Promise.all([smartrekClient.listSites(), smartrekClient.listSensors()])
@@ -189,15 +191,19 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         onSelectAll={() => {
           setActiveSiteId(null)
           setActiveCategory(null)
+          setShowingDifferentials(false)
         }}
         onSelectCategory={(siteId, categoryId) => {
           setActiveSiteId(siteId)
           setActiveCategory(categoryId)
+          setShowingDifferentials(false)
         }}
         onRenameSite={renameSite}
         onLogout={onLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        showingDifferentials={showingDifferentials}
+        onShowDifferentials={() => setShowingDifferentials(true)}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -212,13 +218,17 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <div className="min-w-0">
               <h1 className="font-display text-lg sm:text-2xl truncate">
-                {viewMode === 'map' && !activeSiteId
-                  ? 'Carte des passerelles'
-                  : activeSiteId
-                    ? sites.find((s) => s.id === activeSiteId)?.name
-                    : 'Tous les capteurs'}
-                {viewMode === 'map' && activeSiteId && <span className="text-muted"> — Carte</span>}
-                {viewMode !== 'map' && activeCategory && (
+                {showingDifferentials
+                  ? 'Différentiels'
+                  : viewMode === 'map' && !activeSiteId
+                    ? 'Carte des passerelles'
+                    : activeSiteId
+                      ? sites.find((s) => s.id === activeSiteId)?.name
+                      : 'Tous les capteurs'}
+                {!showingDifferentials && viewMode === 'map' && activeSiteId && (
+                  <span className="text-muted"> — Carte</span>
+                )}
+                {!showingDifferentials && viewMode !== 'map' && activeCategory && (
                   <span className="text-muted">
                     {' '}
                     —{' '}
@@ -228,7 +238,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 )}
               </h1>
               <p className="text-xs sm:text-sm text-muted font-mono truncate">
-                {viewMode === 'map' && !activeSiteId ? (
+                {showingDifferentials ? (
+                  'Tous les écarts configurés, triés par écart décroissant'
+                ) : viewMode === 'map' && !activeSiteId ? (
                   `${sites.length} site${sites.length !== 1 ? 's' : ''}`
                 ) : (
                   <>
@@ -249,14 +261,16 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               <span className="sm:hidden">↻</span>
               <span className="hidden sm:inline">{refreshing ? 'Actualisation…' : '↻ Actualiser'}</span>
             </button>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="bg-sap text-base text-sm font-medium px-2.5 sm:px-4 py-2 rounded hover:opacity-90 transition-opacity"
-              aria-label="Nouveau capteur"
-            >
-              <span className="sm:hidden">+</span>
-              <span className="hidden sm:inline">+ Nouveau capteur</span>
-            </button>
+            {!showingDifferentials && (
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="bg-sap text-base text-sm font-medium px-2.5 sm:px-4 py-2 rounded hover:opacity-90 transition-opacity"
+                aria-label="Nouveau capteur"
+              >
+                <span className="sm:hidden">+</span>
+                <span className="hidden sm:inline">+ Nouveau capteur</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -266,10 +280,11 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
-          {viewMode !== 'map' && (
-            <>
-              <input
+        {!showingDifferentials && (
+          <div className="px-3 sm:px-6 py-3 border-b border-line flex flex-wrap items-center gap-2">
+            {viewMode !== 'map' && (
+              <>
+                <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Filtrer par nom…"
@@ -311,9 +326,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
           </div>
         </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-canvas">
-          {viewMode === 'map' && !activeSiteId ? (
+          {showingDifferentials ? (
+            <DifferentialsPage sensors={sensors} onOpenSensor={setOpenSensorId} onSensorChange={updateSensorInList} />
+          ) : viewMode === 'map' && !activeSiteId ? (
             <SitesMap
               sites={sites}
               onSelectSite={(id) => {

@@ -347,6 +347,23 @@ statut propre côté API pour la passerelle elle-même, donc calculé comme
 « au moins un de ses capteurs a transmis dans les 10 dernières minutes »
 (`getSiteStatus()` dans `sensorStatus.ts`).
 
+## Fonctionnalité locale — page Différentiels
+
+Lien « Différentiels » dans la sidebar, sous « Tous les sites » —
+affiche **tous les ports de tous les capteurs** (tous sites confondus)
+qui ont un différentiel configuré, triés par écart décroissant. Chaque
+ligne : nom du différentiel (éditable directement dans le tableau, en
+cliquant dessus), capteur·port source (clic → ouvre son détail), capteur
+·port de référence (clic → ouvre le sien), écart, bouton pour retirer la
+config. Implémenté dans `src/components/DifferentialsPage.tsx`.
+
+**Nom du différentiel** : `PortDifferentialConfig` porte maintenant un
+`label` optionnel, éditable soit depuis le panneau de détail du capteur
+(nouveau champ juste avant le sélecteur de port de référence), soit
+directement depuis la page Différentiels. `withUpdatedDifferential()`
+dans `src/lib/differential.ts` centralise le patch du tableau `channels`
+pour les deux usages.
+
 ## À capturer encore
 - [x] Requête de login (structure connue — réponse complète encore à confirmer)
 - [ ] Réponse complète de /Account/login (forme exacte du JWT retourné)

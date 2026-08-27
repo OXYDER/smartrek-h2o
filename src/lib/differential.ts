@@ -1,4 +1,15 @@
-import type { Sensor, SensorChannel } from '../types/sensor'
+import type { Sensor, SensorChannel, PortDifferentialConfig } from '../types/sensor'
+
+/** Construit le nouveau tableau `channels` avec le différentiel d'UN
+ * canal mis à jour — utilisé avant un `smartrekClient.updateSensor()`
+ * (pas d'endpoint dédié par canal, on patche le tableau en entier). */
+export function withUpdatedDifferential(
+  sensor: Sensor,
+  channelId: string,
+  config: PortDifferentialConfig | undefined
+): SensorChannel[] {
+  return sensor.channels.map((c) => (c.id === channelId ? { ...c, differential: config } : c))
+}
 
 /** Écart (signé, en inHg) entre CE port et le port de référence choisi
  * spécifiquement pour lui — capteur ET port de référence sont libres,

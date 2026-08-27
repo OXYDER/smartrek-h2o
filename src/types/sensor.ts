@@ -29,6 +29,7 @@ export interface ThresholdRule {
 /** Configuration du différentiel pour UN port précis — capteur ET port de
  * référence choisis librement (pas forcément le même numéro de port). */
 export interface PortDifferentialConfig {
+  label?: string
   referenceSensorId: string
   referencePortId: string // id du SensorChannel de référence
   threshold?: ThresholdRule

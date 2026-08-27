@@ -23,6 +23,8 @@ interface Props {
   onLogout: () => void
   open: boolean
   onClose: () => void
+  showingDifferentials: boolean
+  onShowDifferentials: () => void
 }
 
 function CategoryRow({
@@ -71,6 +73,8 @@ export function Sidebar({
   onLogout,
   open,
   onClose,
+  showingDifferentials,
+  onShowDifferentials,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -133,10 +137,21 @@ export function Sidebar({
               onClose()
             }}
             className={`text-left text-sm px-3 py-2 rounded transition-colors ${
-              activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+              !showingDifferentials && activeSiteId === null ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
             }`}
           >
             Tous les sites
+          </button>
+          <button
+            onClick={() => {
+              onShowDifferentials()
+              onClose()
+            }}
+            className={`text-left text-sm px-3 py-2 rounded transition-colors ${
+              showingDifferentials ? 'bg-panel-raised text-sap' : 'text-muted hover:text-text'
+            }`}
+          >
+            Différentiels
           </button>
           {sites.map((site, i) => {
             const siteSensors = sensors.filter((s) => s.siteId === site.id)
